@@ -1,0 +1,26 @@
+version: "3.8"
+
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_ENV=development
+      - DRY_RUN=true
+      - DATABASE_URL=sqlite+aiosqlite:///./dev.db
+    volumes:
+      - ./src:/app/src
+    command: uvicorn receptionist.main:app --host 0.0.0.0 --port 8000 --reload
+
+  dashboard:
+    build: .
+    ports:
+      - "8501:8501"
+    environment:
+      - API_URL=http://api:8000
+    volumes:
+      - ./src:/app/src
+    command: streamlit run src/receptionist/dashboard/app.py --server.port 8501 --server.address 0.0.0.0
+    depends_on:
+      - api
