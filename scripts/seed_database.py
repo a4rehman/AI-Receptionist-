@@ -9,6 +9,8 @@ Usage:
 """
 
 import asyncio
+import ssl
+import sys
 from datetime import date, timedelta
 
 from sqlalchemy import select
@@ -33,7 +35,20 @@ async def seed_database():
             f"@{settings.tidb_host}:{settings.tidb_port}/{settings.tidb_database}"
         )
 
-    engine = create_async_engine(database_url, echo=False, pool_pre_ping=True)
+    ssl_context = ssl.create_default_context(cafile=settings.tidb_ca_path or None)
+    if settings.tidb_ssl_mode == "preferred":
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+
+    engine = create_async_engine(
+        database_url,
+        echo=False,
+        pool_pre_ping=True,
+        connect_args={
+            "ssl": ssl_context,
+            "connect_timeout": 10,
+        },
+    )
     session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     print("=" * 60)
@@ -107,6 +122,7 @@ async def seed_database():
                     phone="+1234567891",
                     is_active=True,
                 ))
+            await session.flush()
 
             services = [
                 ("cleaning", "Dental Cleaning", "Professional dental cleaning", 30, 80.0),
@@ -126,6 +142,7 @@ async def seed_database():
                     currency="USD",
                     is_active=True,
                 ))
+            await session.flush()
 
             staff_services = [
                 ("dr_ahmed", "cleaning"), ("dr_ahmed", "checkup"), ("dr_ahmed", "filling"),
@@ -180,4 +197,6 @@ async def seed_database():
 
 
 if __name__ == "__main__":
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     asyncio.run(seed_database())
