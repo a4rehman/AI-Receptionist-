@@ -60,7 +60,10 @@ async def test_dental_booking_flow(db_session, dental_clinic):
             customer_id=dental_clinic["customer_id"],
             current_message="I want a cleaning tomorrow afternoon",
         )
-        result = await receptionist_graph.ainvoke(state.model_dump())
+        result = await receptionist_graph.ainvoke(
+            state.model_dump(),
+            config={"configurable": {"thread_id": conv_id}},
+        )
         assert result["intent"] in ("booking", "availability")
         assert result["execution_status"] == "completed"
     finally:

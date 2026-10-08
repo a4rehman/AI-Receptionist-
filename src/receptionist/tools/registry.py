@@ -8,19 +8,26 @@ logger = structlog.get_logger()
 
 ToolFunction = Callable[..., Awaitable[Any]]
 
+WRITE_PERMISSIONS = {"write"}
+READ_PERMISSIONS = {"read"}
+
 
 class ToolContext:
-    def __init__(self, tenant_id: str, conversation_id: str, customer_id: Optional[str] = None, db_session: Any = None):
+    def __init__(self, tenant_id: str, conversation_id: str, customer_id: Optional[str] = None, db_session: Any = None, enabled_tools: Optional[list[str]] = None):
         self.tenant_id = tenant_id
         self.conversation_id = conversation_id
         self.customer_id = customer_id
         self.db_session = db_session
+        self.enabled_tools = enabled_tools or []
 
     async def get_session(self):
         if self.db_session is not None:
             return self.db_session
         from receptionist.db.engine import async_session_factory
         return async_session_factory()
+
+    def is_tool_enabled(self, tool_name: str) -> bool:
+        return not self.enabled_tools or tool_name in self.enabled_tools
 
 
 class ToolResult:
@@ -65,6 +72,11 @@ def tool(name: str, description: str, input_schema: type[BaseModel], permission:
         @wraps(func)
         async def wrapper(*args, **kwargs):
             start = time.time()
+            ctx = kwargs.get("ctx") or (args[1] if len(args) > 1 else None)
+
+            if ctx and hasattr(ctx, "is_tool_enabled") and not ctx.is_tool_enabled(name):
+                return ToolResult(success=False, error=f"Tool '{name}' is not enabled for this tenant")
+
             try:
                 result = await func(*args, **kwargs)
                 duration_ms = int((time.time() - start) * 1000)
@@ -74,6 +86,8 @@ def tool(name: str, description: str, input_schema: type[BaseModel], permission:
                     duration_ms=duration_ms,
                     success=True,
                 )
+                if ctx and hasattr(ctx, "db_session") and ctx.db_session:
+                    await _log_tool_call(ctx, name, args, result, duration_ms, None)
                 return result
             except Exception as e:
                 duration_ms = int((time.time() - start) * 1000)
@@ -83,6 +97,8 @@ def tool(name: str, description: str, input_schema: type[BaseModel], permission:
                     duration_ms=duration_ms,
                     error=str(e),
                 )
+                if ctx and hasattr(ctx, "db_session") and ctx.db_session:
+                    await _log_tool_call(ctx, name, args, None, duration_ms, str(e))
                 raise
 
         return wrapper
@@ -99,3 +115,21 @@ def list_tools() -> list[ToolDefinition]:
 
 def get_tools_for_tenant(enabled_tools: list[str]) -> list[ToolDefinition]:
     return [t for t in _tool_registry.values() if t.name in enabled_tools]
+
+
+async def _log_tool_call(ctx: ToolContext, tool_name: str, args: tuple, result: Any, duration_ms: int, error: Optional[str]) -> None:
+    try:
+        from receptionist.db.models import ToolCall
+        tool_call = ToolCall(
+            run_id=ctx.conversation_id,
+            tool_name=tool_name,
+            arguments=str(args[0]) if args else None,
+            result=result.to_dict() if hasattr(result, "to_dict") else str(result) if result else None,
+            status="failed" if error else "completed",
+            duration_ms=duration_ms,
+            error=error,
+        )
+        ctx.db_session.add(tool_call)
+        await ctx.db_session.flush()
+    except Exception:
+        logger.warning("failed to log tool call", tool_name=tool_name)

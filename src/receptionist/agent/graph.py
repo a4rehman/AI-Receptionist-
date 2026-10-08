@@ -1,4 +1,5 @@
 from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
 from receptionist.agent.state import ReceptionistState
 from receptionist.agent.nodes import (
     load_session, load_tenant_context, intent_classifier, entity_extraction,
@@ -57,7 +58,8 @@ def build_graph():
     graph.add_edge("save_conversation", "update_agent_state")
     graph.add_edge("update_agent_state", END)
 
-    return graph.compile()
+    checkpointer = MemorySaver()
+    return graph.compile(checkpointer=checkpointer)
 
 
 receptionist_graph = build_graph()

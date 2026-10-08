@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timedelta, time
 from typing import Optional
 from pydantic import BaseModel, Field
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, text
 from receptionist.tools.registry import tool, ToolContext, ToolResult
 from receptionist.db.models import Appointment, AppointmentStatus, AppointmentStatusHistory, Service, Staff, Customer
 from receptionist.services.availability import AvailabilityService
@@ -78,38 +78,59 @@ async def _create_booking_with_session(args: CreateBookingArgs, ctx: ToolContext
     start_dt = datetime.combine(target_date, time(hour, minute))
     end_dt = start_dt + timedelta(minutes=service.duration_minutes)
 
-    appointment = Appointment(
-        id=f"apt_{uuid.uuid4().hex[:12]}",
-        tenant_id=ctx.tenant_id,
-        customer_id=args.customer_id,
-        staff_id=selected_slot["staff_id"],
-        service_id=args.service_id,
-        start_time=start_dt,
-        end_time=end_dt,
-        status=AppointmentStatus.CONFIRMED,
-        idempotency_key=idem_key,
-        notes=args.notes,
-    )
-    session.add(appointment)
+    try:
+        await session.begin_nested()
 
-    status_history = AppointmentStatusHistory(
-        appointment_id=appointment.id,
-        to_status=AppointmentStatus.CONFIRMED.value,
-        changed_by="agent",
-    )
-    session.add(status_history)
+        lock_result = await session.execute(
+            select(Appointment).where(
+                Appointment.tenant_id == ctx.tenant_id,
+                Appointment.staff_id == selected_slot["staff_id"],
+                Appointment.status.notin_([AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW]),
+                Appointment.start_time < end_dt,
+                Appointment.end_time > start_dt,
+            ).with_for_update()
+        )
+        conflicting = lock_result.scalars().all()
+        if conflicting:
+            await session.rollback()
+            return ToolResult(success=False, error="Selected time slot is no longer available")
 
-    await session.commit()
+        appointment = Appointment(
+            id=f"apt_{uuid.uuid4().hex[:12]}",
+            tenant_id=ctx.tenant_id,
+            customer_id=args.customer_id,
+            staff_id=selected_slot["staff_id"],
+            service_id=args.service_id,
+            start_time=start_dt,
+            end_time=end_dt,
+            status=AppointmentStatus.CONFIRMED,
+            idempotency_key=idem_key,
+            notes=args.notes,
+        )
+        session.add(appointment)
 
-    result_data = {
-        "appointment_id": appointment.id,
-        "date": args.date,
-        "time": args.time,
-        "service": service.name,
-        "staff": selected_slot.get("staff_name"),
-        "status": "confirmed",
-    }
-    await save_idempotency_result(session, ctx.tenant_id, "create_booking", idem_key, result_data)
-    await session.commit()
+        status_history = AppointmentStatusHistory(
+            appointment_id=appointment.id,
+            to_status=AppointmentStatus.CONFIRMED.value,
+            changed_by="agent",
+        )
+        session.add(status_history)
 
-    return ToolResult(success=True, data=result_data)
+        await session.commit()
+
+        result_data = {
+            "appointment_id": appointment.id,
+            "date": args.date,
+            "time": args.time,
+            "service": service.name,
+            "staff": selected_slot.get("staff_name"),
+            "status": "confirmed",
+        }
+        await save_idempotency_result(session, ctx.tenant_id, "create_booking", idem_key, result_data)
+        await session.commit()
+
+        return ToolResult(success=True, data=result_data)
+
+    except Exception as e:
+        await session.rollback()
+        return ToolResult(success=False, error=f"Booking failed: {str(e)}")

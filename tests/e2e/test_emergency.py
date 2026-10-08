@@ -32,7 +32,10 @@ async def test_emergency_detection(db_session):
             conversation_id="conv_emergency",
             current_message="I am having severe chest pain",
         )
-        result = await receptionist_graph.ainvoke(state.model_dump())
+        result = await receptionist_graph.ainvoke(
+            state.model_dump(),
+            config={"configurable": {"thread_id": "conv_emergency"}},
+        )
         assert result["emergency_detected"] is True
         assert result["human_handoff_required"] is True
         assert "emergency" in result["response"].lower() or "911" in result["response"]

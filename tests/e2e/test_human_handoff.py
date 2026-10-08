@@ -32,7 +32,10 @@ async def test_human_handoff_request(db_session):
             conversation_id="conv_handoff",
             current_message="I want to speak to a human",
         )
-        result = await receptionist_graph.ainvoke(state.model_dump())
+        result = await receptionist_graph.ainvoke(
+            state.model_dump(),
+            config={"configurable": {"thread_id": "conv_handoff"}},
+        )
         assert result["intent"] == "human_handoff"
         assert result["human_handoff_required"] is True
     finally:
