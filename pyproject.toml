@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "100Solutionz Universal AI Receptionist Platform"
 authors = ["100Solutionz"]
 package-mode = false
+packages = [{include = "receptionist", from = "src"}]
 
 [tool.poetry.dependencies]
 python = ">=3.11"
