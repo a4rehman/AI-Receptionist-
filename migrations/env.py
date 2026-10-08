@@ -1,4 +1,5 @@
 import asyncio
+import sys
 from logging.config import fileConfig
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import create_async_engine
@@ -34,13 +35,27 @@ def do_run_migrations(connection):
 
 
 async def run_async_migrations() -> None:
-    connectable = create_async_engine(_settings.database_url_async, poolclass=pool.NullPool)
+    ssl_context = None
+    if _settings.tidb_ca_path:
+        import ssl
+        ssl_context = ssl.create_default_context(cafile=_settings.tidb_ca_path)
+        if _settings.tidb_ssl_mode == "preferred":
+            ssl_context.check_hostname = False
+            ssl_context.verify_mode = ssl.CERT_NONE
+
+    connectable = create_async_engine(
+        _settings.database_url_async,
+        poolclass=pool.NullPool,
+        connect_args={"ssl": ssl_context} if ssl_context else {},
+    )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
     await connectable.dispose()
 
 
 def run_migrations_online() -> None:
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     asyncio.run(run_async_migrations())
 
 

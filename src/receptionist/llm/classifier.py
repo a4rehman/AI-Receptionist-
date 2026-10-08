@@ -24,6 +24,9 @@ INTENT_PATTERNS: dict[str, list[str]] = {
         r"\b(available|availability|free)\b.*\b(slot|time)\b",
         r"\b(what|which|any)\b.*\b(time|slot)\b.*\b(available|free|open)\b.*\?",
         r"\bwhat times?\b.*\bavailable\b",
+        r"\bis\b.*\b(available|free|open)\b",
+        r"\bhave\b.*\b(availability|openings|free slots?)\b",
+        r"\bopenings?\b.*\b(available|tomorrow|today|on)\b",
     ],
     "reschedule": [
         r"\b(reschedule|move|change|postpone)\b.*\b(appointment|booking|reservation)\b",
@@ -84,6 +87,7 @@ ENTITY_PATTERNS = {
     "phone": r"\b(\+?\d{1,3}[-.\s]?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})\b",
     "email": r"\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b",
     "party_size": r"\b(\d+|one|two|three|four|five|six|seven|eight)\b.*\b(people|person|guests?|pax)\b",
+    "appointment_id": r"\b(apt_[a-z0-9]+)\b",
 }
 
 

@@ -1,21 +1,9 @@
 import pytest
 import pytest_asyncio
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
-from receptionist.db.models import Base, Tenant, Conversation
+from receptionist.db.models import Tenant, Conversation
 from receptionist.agent.state import ReceptionistState
 from receptionist.agent.graph import receptionist_graph
 from receptionist.db.tenant import set_current_tenant, clear_current_tenant
-
-
-@pytest_asyncio.fixture
-async def db_session():
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    async with session_factory() as session:
-        yield session
-    await engine.dispose()
 
 
 @pytest.mark.asyncio

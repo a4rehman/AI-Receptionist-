@@ -4,7 +4,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from receptionist.tools.registry import tool, ToolContext, ToolResult
-from receptionist.db.models import Appointment, AppointmentStatus, AppointmentStatusHistory, Service
+from receptionist.db.models import Appointment, AppointmentStatus, AppointmentStatusHistory, Service, Customer
 from receptionist.services.availability import AvailabilityService
 from receptionist.utils.idempotency import generate_idempotency_key, check_idempotency, save_idempotency_result
 
@@ -93,6 +93,17 @@ async def reschedule_booking(args: RescheduleBookingArgs, ctx: ToolContext) -> T
         session.add(status_history)
 
         await session.commit()
+
+        from receptionist.services.notification import NotificationService
+        customer_result = await session.execute(
+            select(Customer).where(
+                Customer.id == appointment.customer_id,
+                Customer.tenant_id == ctx.tenant_id,
+            )
+        )
+        customer = customer_result.scalar_one_or_none()
+        notification_service = NotificationService(session)
+        await notification_service.send_appointment_confirmation(appointment, customer.email if customer else None)
 
         result_data = {
             "appointment_id": appointment.id,

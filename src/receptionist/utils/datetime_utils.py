@@ -47,19 +47,30 @@ def parse_relative_date(text: str, tz: str = "UTC") -> Optional[date]:
 def parse_time_of_day(text: str) -> Optional[str]:
     text_lower = text.lower().strip()
 
-    time_match = re.search(r"(\d{1,2})(?::(\d{2}))?\s*(am|pm)?", text_lower)
-    if time_match:
-        hour = int(time_match.group(1))
-        minute = int(time_match.group(2)) if time_match.group(2) else 0
-        ampm = time_match.group(3)
-
+    hhmm = re.search(r"\b(\d{1,2}):(\d{2})\s*(am|pm)?\b", text_lower)
+    if hhmm:
+        hour, minute, ampm = int(hhmm.group(1)), int(hhmm.group(2)), hhmm.group(3)
         if ampm == "pm" and hour < 12:
             hour += 12
         elif ampm == "am" and hour == 12:
             hour = 0
-
         if 0 <= hour <= 23 and 0 <= minute <= 59:
             return f"{hour:02d}:{minute:02d}"
+
+    hampm = re.search(r"\b(\d{1,2})\s*(am|pm)\b", text_lower)
+    if hampm:
+        hour, ampm = int(hampm.group(1)), hampm.group(2)
+        if ampm == "pm" and hour < 12:
+            hour += 12
+        elif ampm == "am" and hour == 12:
+            hour = 0
+        if 0 <= hour <= 23:
+            return f"{hour:02d}:00"
+
+    if re.fullmatch(r"\d{1,2}", text_lower):
+        hour = int(text_lower)
+        if 0 <= hour <= 23:
+            return f"{hour:02d}:00"
 
     if "morning" in text_lower:
         return "09:00"

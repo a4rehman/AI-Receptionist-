@@ -12,7 +12,7 @@ from receptionist.agent.graph import receptionist_graph
 from receptionist.db.engine import async_session_factory
 from receptionist.db.models import (
     Appointment, Service, Staff, Customer, Conversation,
-    AgentRun, AgentEvent, HumanHandoff,
+    AgentRun, AgentEvent, HumanHandoff, Tenant,
 )
 from receptionist.db.tenant import set_current_tenant, clear_current_tenant
 from receptionist.services.availability import AvailabilityService
@@ -34,20 +34,27 @@ async def chat(request: ChatRequest):
         customer_id=request.customer_id,
         channel=request.channel,
         current_message=request.message,
+        idempotency_key=request.idempotency_key,
     )
 
     set_current_tenant(request.tenant_id)
     try:
         async with async_session_factory() as session:
-            result = await receptionist_graph.ainvoke(
-                state.model_dump(),
-                config={"configurable": {"thread_id": conversation_id}},
+            tenant_result = await session.execute(
+                select(Tenant).where(Tenant.id == request.tenant_id, Tenant.is_active == True)  # noqa: E712
             )
+            if tenant_result.scalar_one_or_none() is None:
+                raise HTTPException(status_code=404, detail="Unknown tenant")
+
+        result = await receptionist_graph.ainvoke(
+            state.model_dump(),
+            config={"configurable": {"thread_id": conversation_id}},
+        )
     finally:
         clear_current_tenant()
 
     return ChatResponse(
-        conversation_id=conversation_id,
+        conversation_id=result.get("conversation_id") or conversation_id,
         response=result.get("response", "I'm sorry, I couldn't process that request."),
         status=result.get("execution_status", "completed"),
         intent=result.get("intent"),

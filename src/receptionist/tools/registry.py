@@ -13,12 +13,13 @@ READ_PERMISSIONS = {"read"}
 
 
 class ToolContext:
-    def __init__(self, tenant_id: str, conversation_id: str, customer_id: Optional[str] = None, db_session: Any = None, enabled_tools: Optional[list[str]] = None):
+    def __init__(self, tenant_id: str, conversation_id: str, customer_id: Optional[str] = None, db_session: Any = None, enabled_tools: Optional[list[str]] = None, run_id: Optional[str] = None):
         self.tenant_id = tenant_id
         self.conversation_id = conversation_id
         self.customer_id = customer_id
         self.db_session = db_session
         self.enabled_tools = enabled_tools or []
+        self.run_id = run_id
 
     async def get_session(self):
         if self.db_session is not None:
@@ -61,14 +62,6 @@ _tool_registry: dict[str, ToolDefinition] = {}
 
 def tool(name: str, description: str, input_schema: type[BaseModel], permission: str = "read"):
     def decorator(func: ToolFunction) -> ToolFunction:
-        _tool_registry[name] = ToolDefinition(
-            name=name,
-            description=description,
-            input_schema=input_schema,
-            permission=permission,
-            func=func,
-        )
-
         @wraps(func)
         async def wrapper(*args, **kwargs):
             start = time.time()
@@ -88,6 +81,7 @@ def tool(name: str, description: str, input_schema: type[BaseModel], permission:
                 )
                 if ctx and hasattr(ctx, "db_session") and ctx.db_session:
                     await _log_tool_call(ctx, name, args, result, duration_ms, None)
+                    await _log_agent_event(ctx, name, "completed", duration_ms)
                 return result
             except Exception as e:
                 duration_ms = int((time.time() - start) * 1000)
@@ -99,8 +93,16 @@ def tool(name: str, description: str, input_schema: type[BaseModel], permission:
                 )
                 if ctx and hasattr(ctx, "db_session") and ctx.db_session:
                     await _log_tool_call(ctx, name, args, None, duration_ms, str(e))
+                    await _log_agent_event(ctx, name, "failed", duration_ms)
                 raise
 
+        _tool_registry[name] = ToolDefinition(
+            name=name,
+            description=description,
+            input_schema=input_schema,
+            permission=permission,
+            func=wrapper,
+        )
         return wrapper
     return decorator
 
@@ -118,13 +120,25 @@ def get_tools_for_tenant(enabled_tools: list[str]) -> list[ToolDefinition]:
 
 
 async def _log_tool_call(ctx: ToolContext, tool_name: str, args: tuple, result: Any, duration_ms: int, error: Optional[str]) -> None:
+    if not getattr(ctx, "run_id", None):
+        return
     try:
+        from pydantic import BaseModel
         from receptionist.db.models import ToolCall
+
+        raw_args = args[0] if args else None
+        if isinstance(raw_args, BaseModel):
+            arguments = raw_args.model_dump()
+        elif raw_args is not None:
+            arguments = {"input": str(raw_args)}
+        else:
+            arguments = None
+
         tool_call = ToolCall(
-            run_id=ctx.conversation_id,
+            run_id=ctx.run_id,
             tool_name=tool_name,
-            arguments=str(args[0]) if args else None,
-            result=result.to_dict() if hasattr(result, "to_dict") else str(result) if result else None,
+            arguments=arguments,
+            result=result.to_dict() if hasattr(result, "to_dict") else ({"output": str(result)} if result else None),
             status="failed" if error else "completed",
             duration_ms=duration_ms,
             error=error,
@@ -133,3 +147,22 @@ async def _log_tool_call(ctx: ToolContext, tool_name: str, args: tuple, result: 
         await ctx.db_session.flush()
     except Exception:
         logger.warning("failed to log tool call", tool_name=tool_name)
+
+
+async def _log_agent_event(ctx: ToolContext, tool_name: str, status: str, duration_ms: int) -> None:
+    if not getattr(ctx, "run_id", None):
+        return
+    try:
+        from receptionist.db.models import AgentEvent
+
+        ctx.db_session.add(AgentEvent(
+            run_id=ctx.run_id,
+            event_type="tool_executed",
+            node_name="tool_execution",
+            tool_name=tool_name,
+            status=status,
+            duration_ms=duration_ms,
+        ))
+        await ctx.db_session.flush()
+    except Exception:
+        logger.warning("failed to log agent event", tool_name=tool_name)

@@ -9,6 +9,7 @@ class ChatRequest(BaseModel):
     message: str = Field(..., description="User message")
     channel: str = Field("web", description="Channel (web, whatsapp, sms, email)")
     customer_id: Optional[str] = Field(None, description="Known customer ID")
+    idempotency_key: Optional[str] = Field(None, description="Optional idempotency key for safe retries")
 
 
 class ChatResponse(BaseModel):

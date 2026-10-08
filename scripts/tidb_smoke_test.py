@@ -12,6 +12,7 @@ Required environment variables:
 """
 
 import asyncio
+import ssl
 import uuid
 from datetime import date, datetime, time, timedelta
 
@@ -46,7 +47,20 @@ async def run_smoke_test():
         f"@{settings.tidb_host}:{settings.tidb_port}/{settings.tidb_database}"
     )
 
-    engine = create_async_engine(database_url, echo=False, pool_pre_ping=True)
+    ssl_context = ssl.create_default_context(cafile=settings.tidb_ca_path or None)
+    if settings.tidb_ssl_mode == "preferred":
+        ssl_context.check_hostname = False
+        ssl_context.verify_mode = ssl.CERT_NONE
+
+    engine = create_async_engine(
+        database_url,
+        echo=False,
+        pool_pre_ping=True,
+        connect_args={
+            "ssl": ssl_context,
+            "connect_timeout": 10,
+        },
+    )
     session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     print("=" * 60)
@@ -59,6 +73,12 @@ async def run_smoke_test():
         print("[PASS] Database tables created/verified")
 
         async with session_factory() as session:
+            await session.execute(
+                text("DELETE FROM tenants WHERE id = :tid"),
+                {"tid": TEST_TENANT_ID},
+            )
+            await session.commit()
+
             tenant = Tenant(
                 id=TEST_TENANT_ID,
                 business_type="dental_clinic",
@@ -96,6 +116,7 @@ async def run_smoke_test():
                 price=100.0,
             )
             session.add(service)
+            await session.flush()
             session.add(StaffService(staff_id="staff_test_001", service_id="svc_test_001"))
 
             for day in range(5):
@@ -272,5 +293,9 @@ async def run_smoke_test():
 
 
 if __name__ == "__main__":
+    import sys
+
+    if sys.platform == "win32":
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     success = asyncio.run(run_smoke_test())
     exit(0 if success else 1)

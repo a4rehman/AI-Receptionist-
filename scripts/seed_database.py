@@ -89,7 +89,7 @@ async def seed_database():
                 ("min_cancellation_hours", "24"),
                 ("max_booking_horizon_days", "90"),
                 ("buffer_minutes", "0"),
-                ("enabled_tools", "get_services,get_availability,create_booking,cancel_booking,get_customer,get_staff"),
+                ("enabled_tools", "list_services,get_availability,create_booking,cancel_booking,reschedule_booking,get_customer,get_customer_appointments,get_staff,list_staff,get_business_info,search_faq"),
             ]
             for key, value in settings_data:
                 session.add(TenantSetting(tenant_id=TEST_TENANT_ID, key=key, value=value))

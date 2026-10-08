@@ -60,8 +60,11 @@ class Settings(BaseSettings):
 
     @property
     def database_url_async(self) -> str:
-        if self.database_url.startswith("mysql"):
-            return self.database_url.replace("mysql://", "mysql+aiomysql://", 1)
+        if self.tidb_host:
+            return (
+                f"mysql+aiomysql://{self.tidb_user}:{self.tidb_password}"
+                f"@{self.tidb_host}:{self.tidb_port}/{self.tidb_database}"
+            )
         return self.database_url
 
 

@@ -43,6 +43,20 @@ class TestParseTimeOfDay:
     def test_noon(self):
         assert parse_time_of_day("noon") == "12:00"
 
+    def test_time_not_confused_by_appointment_id_digits(self):
+        msg = "reschedule appointment apt_8b29c39833a0 to 2026-10-12 at 11:00 am"
+        assert parse_time_of_day(msg) == "11:00"
+
+    def test_date_digits_not_parsed_as_time(self):
+        assert parse_time_of_day("2026-10-12 at 14:00") == "14:00"
+
+    def test_hour_with_am_pm_no_colon(self):
+        assert parse_time_of_day("tomorrow at 8 am") == "08:00"
+
+    def test_bare_number_only_when_whole_text(self):
+        assert parse_time_of_day("8") == "08:00"
+        assert parse_time_of_day("order 8 widgets") is None
+
 
 class TestTimeConversion:
     def test_add_minutes(self):

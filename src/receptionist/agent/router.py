@@ -4,6 +4,7 @@ from receptionist.agent.state import ReceptionistState
 INTENT_TO_NODE = {
     "faq": "faq_handler",
     "services": "service_handler",
+    "service_lookup": "service_handler",
     "business_info": "business_info_handler",
     "availability": "availability_handler",
     "booking": "booking_handler",

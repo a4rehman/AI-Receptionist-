@@ -118,6 +118,10 @@ async def _create_booking_with_session(args: CreateBookingArgs, ctx: ToolContext
 
         await session.commit()
 
+        from receptionist.services.notification import NotificationService
+        notification_service = NotificationService(session)
+        await notification_service.send_appointment_confirmation(appointment, customer.email if customer else None)
+
         result_data = {
             "appointment_id": appointment.id,
             "date": args.date,
@@ -131,6 +135,11 @@ async def _create_booking_with_session(args: CreateBookingArgs, ctx: ToolContext
 
         return ToolResult(success=True, data=result_data)
 
-    except Exception as e:
+    except Exception:
         await session.rollback()
-        return ToolResult(success=False, error=f"Booking failed: {str(e)}")
+        import structlog
+        structlog.get_logger().error("booking_failed", tenant_id=ctx.tenant_id, exc_info=True)
+        return ToolResult(
+            success=False,
+            error="The booking could not be completed due to an unexpected error. Please try again.",
+        )

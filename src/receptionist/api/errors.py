@@ -1,6 +1,5 @@
 from fastapi import Request
 from fastapi.responses import JSONResponse
-from receptionist.utils.pii import redact_pii
 import structlog
 import traceback
 
@@ -21,7 +20,6 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         content={
             "error": "Internal server error",
             "error_id": error_id,
-            "message": redact_pii(str(exc)),
         },
     )
 
