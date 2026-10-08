@@ -1,6 +1,7 @@
 from receptionist.llm.base import BaseLLMProvider
 from receptionist.llm.mock_provider import MockLLMProvider
 from receptionist.llm.classifier import RuleBasedIntentClassifier, ClassificationResult
+from receptionist.llm.intent import IntentClassifier
 
 
 def get_llm_provider() -> BaseLLMProvider:
@@ -17,5 +18,5 @@ def get_llm_provider() -> BaseLLMProvider:
 
 __all__ = [
     "BaseLLMProvider", "MockLLMProvider", "RuleBasedIntentClassifier",
-    "ClassificationResult", "get_llm_provider",
+    "ClassificationResult", "get_llm_provider", "IntentClassifier",
 ]

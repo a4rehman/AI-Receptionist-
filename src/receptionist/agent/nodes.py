@@ -5,7 +5,7 @@ from functools import wraps
 from typing import Any, Optional
 from sqlalchemy import select, update
 from receptionist.agent.state import ReceptionistState, Message, TimeSlot
-from receptionist.llm.classifier import RuleBasedIntentClassifier
+from receptionist.llm.intent import IntentClassifier
 from receptionist.db.models import (
     Conversation, Message as MessageModel, AgentRun, AgentEvent, TenantSetting,
     Customer, Service, Staff, Appointment, AppointmentStatus,
@@ -17,7 +17,7 @@ from receptionist.tools.registry import get_tool, ToolContext, ToolResult
 import structlog
 
 logger = structlog.get_logger()
-classifier = RuleBasedIntentClassifier()
+classifier = IntentClassifier()
 
 ACTIONABLE_INTENTS = {
     "booking", "availability", "cancel", "reschedule", "appointment_lookup",
@@ -119,7 +119,7 @@ async def load_tenant_context(state: ReceptionistState, db_session: Any = None) 
 
 async def intent_classifier(state: ReceptionistState, db_session: Any = None) -> ReceptionistState:
     state.current_node = "INTENT_CLASSIFIER"
-    result = classifier.classify(state.current_message)
+    result = await classifier.aclassify(state.current_message, state.conversation_history)
     intent = result.intent
     confidence = result.confidence
     entities = dict(result.entities)
