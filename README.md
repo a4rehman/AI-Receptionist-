@@ -35,6 +35,18 @@ streamlit run src/receptionist/dashboard/app.py
 
 ## API Endpoints
 
+All `/api/v1/*` endpoints require an API key:
+
+```bash
+curl -H "X-API-Key: <your-key>" http://localhost:8000/api/v1/services
+```
+
+Keys are configured in `.env` as `API_KEYS=tenant_id:secret,...` (comma-separated
+pairs). The authenticated tenant is derived from the key: `X-Tenant-ID` and the
+request body's `tenant_id` are optional and must match the key if present
+(403 otherwise). The Streamlit dashboard reads the key from the
+`RECEPTIONIST_API_KEY` environment variable.
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/v1/chat` | Send message to AI receptionist |

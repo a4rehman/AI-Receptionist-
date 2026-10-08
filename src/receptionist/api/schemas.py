@@ -4,7 +4,7 @@ from datetime import datetime
 
 
 class ChatRequest(BaseModel):
-    tenant_id: str = Field(..., description="Tenant identifier")
+    tenant_id: Optional[str] = Field(None, description="Tenant identifier (derived from API key if omitted; must match it if provided)")
     conversation_id: Optional[str] = Field(None, description="Conversation ID (creates new if not provided)")
     message: str = Field(..., description="User message")
     channel: str = Field("web", description="Channel (web, whatsapp, sms, email)")
@@ -69,7 +69,7 @@ class CustomerResponse(BaseModel):
 
 
 class HandoffRequest(BaseModel):
-    tenant_id: str
+    tenant_id: Optional[str] = None
     conversation_id: str
     reason: str
     priority: str = "medium"

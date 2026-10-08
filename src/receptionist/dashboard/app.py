@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 import httpx
 import json
@@ -6,19 +7,38 @@ from datetime import datetime
 st.set_page_config(page_title="AI Receptionist Admin", layout="wide")
 
 API_URL = "http://localhost:8000/api/v1"
+API_KEY = os.environ.get("RECEPTIONIST_API_KEY", "")
 
 
-def api_get(path: str, params: dict = None):
+def _headers(tenant: str = None) -> dict:
+    headers = {}
+    if API_KEY:
+        headers["X-API-Key"] = API_KEY
+    if tenant:
+        headers["X-Tenant-ID"] = tenant
+    return headers
+
+
+def api_get(path: str, params: dict = None, tenant: str = None):
     try:
-        resp = httpx.get(f"{API_URL}{path}", params=params, timeout=10)
+        resp = httpx.get(f"{API_URL}{path}", params=params,
+                         headers=_headers(tenant), timeout=10)
+        if resp.status_code == 401:
+            st.error("API authentication failed. Set the RECEPTIONIST_API_KEY environment variable.")
+            return []
+        if resp.status_code == 403:
+            detail = resp.json().get("detail", resp.text) if resp.text else "Forbidden"
+            st.error(f"Access denied: {detail}")
+            return []
         return resp.json() if resp.status_code == 200 else []
     except Exception:
         return []
 
 
-def api_post(path: str, data: dict):
+def api_post(path: str, data: dict, tenant: str = None):
     try:
-        resp = httpx.post(f"{API_URL}{path}", json=data, timeout=30)
+        resp = httpx.post(f"{API_URL}{path}", json=data,
+                          headers=_headers(tenant), timeout=30)
         return resp.json() if resp.status_code == 200 else {"error": resp.text}
     except Exception as e:
         return {"error": str(e)}
@@ -49,7 +69,7 @@ if page == "Dashboard":
 
 elif page == "Live Agent Runs":
     st.title("Live Agent Runs")
-    runs = api_get("/agent-runs", {"tenant_id": tenant_id})
+    runs = api_get("/agent-runs", tenant=tenant_id)
     if runs:
         for run in runs[:10]:
             with st.expander(f"Run {run['id'][:12]} - {run['status']}"):
@@ -62,7 +82,7 @@ elif page == "Live Agent Runs":
 
 elif page == "Appointments":
     st.title("Appointments")
-    appointments = api_get("/appointments", {"tenant_id": tenant_id})
+    appointments = api_get("/appointments", tenant=tenant_id)
     if appointments:
         for apt in appointments[:20]:
             st.write(f"**{apt['id'][:12]}** | {apt['start_time']} | {apt['status']}")
@@ -71,7 +91,7 @@ elif page == "Appointments":
 
 elif page == "Customers":
     st.title("Customers")
-    customers = api_get("/customers", {"tenant_id": tenant_id})
+    customers = api_get("/customers", tenant=tenant_id)
     if customers:
         for cust in customers[:20]:
             st.write(f"**{cust['first_name']} {cust['last_name']}** | {cust.get('email', 'N/A')}")
@@ -80,7 +100,7 @@ elif page == "Customers":
 
 elif page == "Staff":
     st.title("Staff")
-    staff = api_get("/staff", {"tenant_id": tenant_id})
+    staff = api_get("/staff", tenant=tenant_id)
     if staff:
         for s in staff:
             st.write(f"**{s['name']}** | {s.get('role', 'N/A')} | {s.get('department', 'N/A')}")
@@ -89,7 +109,7 @@ elif page == "Staff":
 
 elif page == "Services":
     st.title("Services")
-    services = api_get("/services", {"tenant_id": tenant_id})
+    services = api_get("/services", tenant=tenant_id)
     if services:
         for svc in services:
             st.write(f"**{svc['name']}** | {svc['duration_minutes']}min | ${svc.get('price', 'N/A')}")

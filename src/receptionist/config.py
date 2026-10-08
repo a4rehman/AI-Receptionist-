@@ -45,7 +45,21 @@ class Settings(BaseSettings):
     whatsapp_phone_number_id: str = ""
 
     api_key_header: str = "X-API-Key"
+    api_keys: str = ""
     api_rate_limit: int = 100
+
+    @property
+    def parsed_api_keys(self) -> list[tuple[str, str]]:
+        pairs: list[tuple[str, str]] = []
+        for entry in self.api_keys.split(","):
+            entry = entry.strip()
+            if not entry or ":" not in entry:
+                continue
+            tenant_id, _, secret = entry.partition(":")
+            tenant_id, secret = tenant_id.strip(), secret.strip()
+            if tenant_id and secret:
+                pairs.append((tenant_id, secret))
+        return pairs
 
     dashboard_port: int = 8501
     api_port: int = 8000

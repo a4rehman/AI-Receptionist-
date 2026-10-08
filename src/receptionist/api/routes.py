@@ -1,6 +1,6 @@
 import uuid
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Header, Query
+from fastapi import APIRouter, Depends, HTTPException, Header, Query, Request
 from sqlalchemy import select
 from receptionist.api.schemas import (
     ChatRequest, ChatResponse, AppointmentResponse, AvailabilityRequest,
@@ -9,7 +9,7 @@ from receptionist.api.schemas import (
 )
 from receptionist.agent.state import ReceptionistState
 from receptionist.agent.graph import receptionist_graph
-from receptionist.db.engine import async_session_factory
+from receptionist.db import engine as db_engine
 from receptionist.db.models import (
     Appointment, Service, Staff, Customer, Conversation,
     AgentRun, AgentEvent, HumanHandoff, Tenant,
@@ -20,28 +20,39 @@ from receptionist.services.availability import AvailabilityService
 router = APIRouter(prefix="/api/v1")
 
 
-async def get_tenant_id(x_tenant_id: str = Header(...)) -> str:
-    return x_tenant_id
+async def get_tenant_id(
+    request: Request,
+    x_tenant_id: Optional[str] = Header(None),
+) -> str:
+    tenant_id = getattr(request.state, "tenant_id", None)
+    if not tenant_id:
+        raise HTTPException(status_code=401, detail="API key required")
+    if x_tenant_id and x_tenant_id != tenant_id:
+        raise HTTPException(status_code=403, detail="X-Tenant-ID does not match API key")
+    return tenant_id
 
 
 @router.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
-    conversation_id = request.conversation_id or f"conv_{uuid.uuid4().hex[:12]}"
+async def chat(payload: ChatRequest, tenant_id: str = Depends(get_tenant_id)):
+    if payload.tenant_id and payload.tenant_id != tenant_id:
+        raise HTTPException(status_code=403, detail="tenant_id does not match API key")
+
+    conversation_id = payload.conversation_id or f"conv_{uuid.uuid4().hex[:12]}"
 
     state = ReceptionistState(
-        tenant_id=request.tenant_id,
+        tenant_id=tenant_id,
         conversation_id=conversation_id,
-        customer_id=request.customer_id,
-        channel=request.channel,
-        current_message=request.message,
-        idempotency_key=request.idempotency_key,
+        customer_id=payload.customer_id,
+        channel=payload.channel,
+        current_message=payload.message,
+        idempotency_key=payload.idempotency_key,
     )
 
-    set_current_tenant(request.tenant_id)
+    set_current_tenant(tenant_id)
     try:
-        async with async_session_factory() as session:
+        async with db_engine.async_session_factory() as session:
             tenant_result = await session.execute(
-                select(Tenant).where(Tenant.id == request.tenant_id, Tenant.is_active == True)  # noqa: E712
+                select(Tenant).where(Tenant.id == tenant_id, Tenant.is_active == True)  # noqa: E712
             )
             if tenant_result.scalar_one_or_none() is None:
                 raise HTTPException(status_code=404, detail="Unknown tenant")
@@ -70,7 +81,7 @@ async def list_appointments(
 ):
     set_current_tenant(tenant_id)
     try:
-        async with async_session_factory() as session:
+        async with db_engine.async_session_factory() as session:
             query = select(Appointment).where(Appointment.tenant_id == tenant_id)
             if customer_id:
                 query = query.where(Appointment.customer_id == customer_id)
@@ -95,7 +106,7 @@ async def list_appointments(
 async def get_appointment(appointment_id: str, tenant_id: str = Depends(get_tenant_id)):
     set_current_tenant(tenant_id)
     try:
-        async with async_session_factory() as session:
+        async with db_engine.async_session_factory() as session:
             result = await session.execute(
                 select(Appointment).where(Appointment.id == appointment_id, Appointment.tenant_id == tenant_id)
             )
@@ -122,7 +133,7 @@ async def get_availability(
 ):
     set_current_tenant(tenant_id)
     try:
-        async with async_session_factory() as session:
+        async with db_engine.async_session_factory() as session:
             service = AvailabilityService(session)
             from datetime import date as date_type
             target_date = date_type.fromisoformat(date)
@@ -139,7 +150,7 @@ async def get_availability(
 async def list_services(tenant_id: str = Depends(get_tenant_id)):
     set_current_tenant(tenant_id)
     try:
-        async with async_session_factory() as session:
+        async with db_engine.async_session_factory() as session:
             result = await session.execute(
                 select(Service).where(Service.tenant_id == tenant_id, Service.is_active == True)
             )
@@ -159,7 +170,7 @@ async def list_services(tenant_id: str = Depends(get_tenant_id)):
 async def list_staff(tenant_id: str = Depends(get_tenant_id)):
     set_current_tenant(tenant_id)
     try:
-        async with async_session_factory() as session:
+        async with db_engine.async_session_factory() as session:
             result = await session.execute(
                 select(Staff).where(Staff.tenant_id == tenant_id, Staff.is_active == True)
             )
@@ -179,7 +190,7 @@ async def list_staff(tenant_id: str = Depends(get_tenant_id)):
 async def list_customers(tenant_id: str = Depends(get_tenant_id)):
     set_current_tenant(tenant_id)
     try:
-        async with async_session_factory() as session:
+        async with db_engine.async_session_factory() as session:
             result = await session.execute(
                 select(Customer).where(Customer.tenant_id == tenant_id).limit(100)
             )
@@ -196,17 +207,19 @@ async def list_customers(tenant_id: str = Depends(get_tenant_id)):
 
 
 @router.post("/handoff", response_model=HandoffResponse)
-async def create_handoff(request: HandoffRequest):
-    set_current_tenant(request.tenant_id)
+async def create_handoff(payload: HandoffRequest, tenant_id: str = Depends(get_tenant_id)):
+    if payload.tenant_id and payload.tenant_id != tenant_id:
+        raise HTTPException(status_code=403, detail="tenant_id does not match API key")
+    set_current_tenant(tenant_id)
     try:
-        async with async_session_factory() as session:
+        async with db_engine.async_session_factory() as session:
             handoff = HumanHandoff(
                 id=f"ho_{uuid.uuid4().hex[:12]}",
-                tenant_id=request.tenant_id,
-                conversation_id=request.conversation_id,
-                customer_id=request.customer_id,
-                reason=request.reason,
-                priority=request.priority,
+                tenant_id=tenant_id,
+                conversation_id=payload.conversation_id,
+                customer_id=payload.customer_id,
+                reason=payload.reason,
+                priority=payload.priority,
                 status="open",
             )
             session.add(handoff)
@@ -223,7 +236,7 @@ async def list_agent_runs(
 ):
     set_current_tenant(tenant_id)
     try:
-        async with async_session_factory() as session:
+        async with db_engine.async_session_factory() as session:
             query = select(AgentRun).where(AgentRun.tenant_id == tenant_id)
             if conversation_id:
                 query = query.where(AgentRun.conversation_id == conversation_id)
@@ -247,7 +260,7 @@ async def list_agent_events(
 ):
     set_current_tenant(tenant_id)
     try:
-        async with async_session_factory() as session:
+        async with db_engine.async_session_factory() as session:
             query = select(AgentEvent).join(AgentRun).where(AgentRun.tenant_id == tenant_id)
             if run_id:
                 query = query.where(AgentEvent.run_id == run_id)

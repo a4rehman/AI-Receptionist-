@@ -1,3 +1,7 @@
+import os
+
+os.environ.setdefault("API_KEYS", "clinic_001:test-api-key-123,other_tenant:other-key-456")
+
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession

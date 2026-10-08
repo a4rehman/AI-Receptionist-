@@ -8,7 +8,7 @@ from receptionist.api.auth import get_current_user
 from receptionist.logging_config import setup_logging
 from receptionist.config import get_settings
 from sqlalchemy import text
-from receptionist.db.engine import async_session_factory
+from receptionist.db import engine as db_engine
 
 setup_logging()
 _settings = get_settings()
@@ -43,7 +43,7 @@ async def health():
 @app.get("/health/database")
 async def health_database(user: dict = Depends(get_current_user)):
     try:
-        async with async_session_factory() as session:
+        async with db_engine.async_session_factory() as session:
             await session.execute(text("SELECT 1"))
         return {"status": "healthy", "database": "connected"}
     except Exception as e:
