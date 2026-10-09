@@ -2,6 +2,8 @@ import os
 
 os.environ.setdefault("API_KEYS", "clinic_001:test-api-key-123,other_tenant:other-key-456")
 os.environ.setdefault("API_RATE_LIMIT", "10000")
+# Tests must never call a real LLM API, regardless of the local .env.
+os.environ.setdefault("LLM_PROVIDER", "mock")
 
 import pytest
 import pytest_asyncio
