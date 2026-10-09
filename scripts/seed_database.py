@@ -13,16 +13,53 @@ import ssl
 import sys
 from datetime import date, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 from receptionist.config import get_settings
 from receptionist.db.models import (
     Base, Tenant, TenantSetting, Location, Staff, Service,
-    StaffService, StaffSchedule, BusinessHours, Customer,
+    StaffService, StaffSchedule, BusinessHours, Customer, FAQ,
 )
 
 TEST_TENANT_ID = "clinic_001"
+
+FAQ_SEED = [
+    ("insurance", "Do you accept insurance?",
+     "Yes, we accept most major dental insurance plans. Please bring your insurance card "
+     "to your first visit and we will verify your coverage before treatment."),
+    ("billing", "What payment methods do you accept?",
+     "We accept cash, credit and debit cards, and dental financing plans. Payment is due "
+     "at the time of service."),
+    ("policy", "What is your cancellation policy?",
+     "Please give us at least 24 hours notice to cancel or reschedule an appointment. "
+     "Late cancellations may incur a fee."),
+    ("hours", "What are your opening hours?",
+     "We are open Monday to Friday from 9:00 AM to 5:00 PM."),
+    ("visits", "What should I bring to my first appointment?",
+     "Please bring a photo ID, your insurance card, and a list of any medications you take."),
+    ("location", "Is parking available?",
+     "Free parking is available in the lot next to our clinic at 123 Main St."),
+]
+
+
+async def seed_faqs(session: AsyncSession, tenant_id: str) -> int:
+    """Idempotent FAQ backfill: only inserts when the tenant has none."""
+    existing = (await session.execute(
+        select(func.count()).select_from(FAQ).where(FAQ.tenant_id == tenant_id)
+    )).scalar() or 0
+    if existing:
+        return 0
+    for category, question, answer in FAQ_SEED:
+        session.add(FAQ(
+            tenant_id=tenant_id,
+            category=category,
+            question=question,
+            answer=answer,
+            is_active=True,
+        ))
+    await session.flush()
+    return len(FAQ_SEED)
 
 
 async def seed_database():
@@ -66,6 +103,12 @@ async def seed_database():
             )
             if result.scalar_one_or_none():
                 print(f"[SKIP] Tenant {TEST_TENANT_ID} already exists")
+                added = await seed_faqs(session, TEST_TENANT_ID)
+                await session.commit()
+                if added:
+                    print(f"[PASS] FAQ backfill: {added} rows added")
+                else:
+                    print("[SKIP] FAQs already present")
                 await engine.dispose()
                 return
 
@@ -178,9 +221,12 @@ async def seed_database():
                 phone="+1234567899",
             ))
 
+            faq_count = await seed_faqs(session, TEST_TENANT_ID)
+
             await session.commit()
             print(f"[PASS] Tenant created: {TEST_TENANT_ID}")
             print("[PASS] Settings, location, staff, services, schedules, customer added")
+            print(f"[PASS] FAQ entries added: {faq_count}")
 
         print("=" * 60)
         print("SEED COMPLETE")
