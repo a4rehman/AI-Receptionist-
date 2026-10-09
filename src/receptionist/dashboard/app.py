@@ -6,7 +6,9 @@ from datetime import datetime
 
 st.set_page_config(page_title="AI Receptionist Admin", layout="wide")
 
-API_URL = "http://localhost:8000/api/v1"
+API_URL = os.environ.get("API_URL", "http://localhost:8000/api/v1").rstrip("/")
+if not API_URL.endswith("/api/v1"):
+    API_URL = f"{API_URL}/api/v1"
 API_KEY = os.environ.get("RECEPTIONIST_API_KEY", "")
 
 

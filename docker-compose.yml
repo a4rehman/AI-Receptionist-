@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   api:
     build: .
@@ -9,6 +7,9 @@ services:
       - APP_ENV=development
       - DRY_RUN=true
       - DATABASE_URL=sqlite+aiosqlite:///./dev.db
+      # Docker Compose reads the project .env for ${...} interpolation.
+      # Without API_KEYS every /api/v1 request is rejected with 401.
+      - API_KEYS=${API_KEYS:-}
     volumes:
       - ./src:/app/src
     command: uvicorn receptionist.main:app --host 0.0.0.0 --port 8000 --reload
@@ -19,6 +20,7 @@ services:
       - "8501:8501"
     environment:
       - API_URL=http://api:8000
+      - RECEPTIONIST_API_KEY=${RECEPTIONIST_API_KEY:-}
     volumes:
       - ./src:/app/src
     command: streamlit run src/receptionist/dashboard/app.py --server.port 8501 --server.address 0.0.0.0

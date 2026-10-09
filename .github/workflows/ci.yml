@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install package + test tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e . pytest pytest-asyncio aiosqlite ruff
+
+      - name: Byte-compile
+        run: python -m compileall -q src scripts tests
+
+      - name: "Lint (blocking: real errors only)"
+        run: ruff check . --select E9,F63,F7,F82
+
+      - name: "Lint (full report, non-blocking)"
+        run: ruff check .
+        continue-on-error: true
+
+      - name: Unit + integration tests
+        run: pytest tests/ -q
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t ai-receptionist:ci .
+
+      - name: Container health check
+        run: |
+          docker run -d --name app -p 8000:8000 \
+            -e API_KEYS=clinic_001:ci-key -e LLM_PROVIDER=mock \
+            ai-receptionist:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8000/health; then exit 0; fi
+            sleep 2
+          done
+          echo "health endpoint never became ready"; docker logs app; exit 1

@@ -3,7 +3,11 @@
 ## Docker
 
 ```bash
-docker-compose up --db
+# Build and start API (port 8000) + dashboard (port 8501)
+docker compose up --build
+
+# API only
+docker compose up --build api
 ```
 
 ## Production Checklist

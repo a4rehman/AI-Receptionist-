@@ -17,8 +17,11 @@ Universal AI Receptionist Platform for multi-business deployment.
 ## Quick Start
 
 ```bash
-# Install dependencies
-pip install -e ".[dev]"
+# Install the package and its dependencies
+pip install -e .
+
+# Test + lint tooling (only needed to run the test suite)
+pip install pytest pytest-asyncio aiosqlite ruff
 
 # Copy environment config
 cp .env.example .env

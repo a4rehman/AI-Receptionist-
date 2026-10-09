@@ -1,0 +1,19 @@
+# Keep secrets and build noise out of the image build context.
+.env
+.env.*
+!.env.example
+.git
+.github
+.gitignore
+.pytest_cache
+.ruff_cache
+__pycache__
+*.pyc
+*.pyo
+dev.db
+*.db
+.pytest_cache/
+docs
+tests
+*.log
+.DS_Store
