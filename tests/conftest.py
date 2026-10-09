@@ -1,6 +1,7 @@
 import os
 
 os.environ.setdefault("API_KEYS", "clinic_001:test-api-key-123,other_tenant:other-key-456")
+os.environ.setdefault("API_RATE_LIMIT", "10000")
 
 import pytest
 import pytest_asyncio

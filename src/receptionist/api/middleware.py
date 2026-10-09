@@ -4,7 +4,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from receptionist.api.auth import resolve_api_key
 from receptionist.config import get_settings
 
-_SECURITY_HEADERS = {
+SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "DENY",
     "X-XSS-Protection": "1; mode=block",
@@ -12,7 +12,7 @@ _SECURITY_HEADERS = {
 
 
 def _unauthorized(detail: str) -> JSONResponse:
-    return JSONResponse({"detail": detail}, status_code=401, headers=_SECURITY_HEADERS)
+    return JSONResponse({"detail": detail}, status_code=401, headers=SECURITY_HEADERS)
 
 
 class APIKeyMiddleware(BaseHTTPMiddleware):
@@ -29,6 +29,6 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
             request.state.tenant_id = tenant_id
 
         response = await call_next(request)
-        for header, value in _SECURITY_HEADERS.items():
+        for header, value in SECURITY_HEADERS.items():
             response.headers[header] = value
         return response

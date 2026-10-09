@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     api_key_header: str = "X-API-Key"
     api_keys: str = ""
     api_rate_limit: int = 100
+    api_rate_limit_window: int = 60
 
     @property
     def parsed_api_keys(self) -> list[tuple[str, str]]:

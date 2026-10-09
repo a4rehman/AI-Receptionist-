@@ -27,7 +27,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.add_middleware(APIKeyMiddleware)
-app.add_middleware(RateLimitMiddleware, max_requests=_settings.api_rate_limit, window_seconds=60)
+app.add_middleware(RateLimitMiddleware, max_requests=_settings.api_rate_limit,
+                   window_seconds=_settings.api_rate_limit_window)
 
 app.add_exception_handler(Exception, global_exception_handler)
 app.add_exception_handler(422, validation_exception_handler)
