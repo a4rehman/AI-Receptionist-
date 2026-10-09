@@ -1,14 +1,15 @@
 from datetime import date
-from typing import Optional
+
 from pydantic import BaseModel, Field
-from receptionist.tools.registry import tool, ToolContext, ToolResult
+
 from receptionist.services.availability import AvailabilityService
+from receptionist.tools.registry import ToolContext, ToolResult, tool
 
 
 class GetAvailabilityArgs(BaseModel):
     service_id: str = Field(..., description="Service ID to check availability for")
     date: str = Field(..., description="Date to check (YYYY-MM-DD)")
-    staff_id: Optional[str] = Field(None, description="Optional staff ID to filter by")
+    staff_id: str | None = Field(None, description="Optional staff ID to filter by")
     timezone: str = Field("UTC", description="Timezone for the business")
 
 

@@ -1,10 +1,9 @@
 from contextvars import ContextVar
-from typing import Optional
 
-tenant_context: ContextVar[Optional[str]] = ContextVar("tenant_context", default=None)
+tenant_context: ContextVar[str | None] = ContextVar("tenant_context", default=None)
 
 
-def get_current_tenant() -> Optional[str]:
+def get_current_tenant() -> str | None:
     return tenant_context.get()
 
 

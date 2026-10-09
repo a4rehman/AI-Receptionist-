@@ -2,9 +2,8 @@ import asyncio
 import smtplib
 import uuid
 from abc import ABC, abstractmethod
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from email.message import EmailMessage
-from typing import Optional
 
 import httpx
 import structlog
@@ -42,7 +41,7 @@ class EmailProvider(BaseNotificationProvider):
     def configured(self) -> bool:
         return bool(get_settings().smtp_host)
 
-    async def send(self, recipient: str, content: str, subject: Optional[str] = None, **kwargs) -> bool:
+    async def send(self, recipient: str, content: str, subject: str | None = None, **kwargs) -> bool:
         settings = get_settings()
         subject = subject or "Appointment Notification"
         if settings.dry_run:
@@ -170,7 +169,7 @@ class WhatsAppProvider(BaseNotificationProvider):
 
 
 class NotificationService:
-    def __init__(self, session, providers: Optional[dict[NotificationChannel, BaseNotificationProvider]] = None):
+    def __init__(self, session, providers: dict[NotificationChannel, BaseNotificationProvider] | None = None):
         self.session = session
         self.providers = providers if providers is not None else {
             NotificationChannel.EMAIL: EmailProvider(),
@@ -185,10 +184,10 @@ class NotificationService:
         channel: NotificationChannel,
         recipient: str,
         content: str,
-        appointment_id: Optional[str] = None,
-        customer_id: Optional[str] = None,
-        scheduled_at: Optional[datetime] = None,
-        subject: Optional[str] = None,
+        appointment_id: str | None = None,
+        customer_id: str | None = None,
+        scheduled_at: datetime | None = None,
+        subject: str | None = None,
     ) -> Notification:
         notification = Notification(
             id=f"notif_{uuid.uuid4().hex[:12]}",
@@ -200,7 +199,7 @@ class NotificationService:
             recipient=recipient,
             content=content,
             status=NotificationStatus.PENDING,
-            scheduled_at=scheduled_at or datetime.now(timezone.utc),
+            scheduled_at=scheduled_at or datetime.now(UTC),
         )
         self.session.add(notification)
         await self.session.flush()
@@ -214,10 +213,10 @@ class NotificationService:
                 success = await provider.send(recipient, content, subject=subject)
                 notification.status = NotificationStatus.SENT if success else NotificationStatus.FAILED
                 if success:
-                    notification.sent_at = datetime.now(timezone.utc)
+                    notification.sent_at = datetime.now(UTC)
                 else:
                     notification.error = f"{channel} provider is not configured"
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - record failure, never raise into caller
                 logger.error(
                     "notification_send_failed",
                     channel=str(channel),
@@ -230,7 +229,7 @@ class NotificationService:
         await self.session.commit()
         return notification
 
-    async def send_appointment_confirmation(self, appointment: Appointment, customer_email: Optional[str] = None):
+    async def send_appointment_confirmation(self, appointment: Appointment, customer_email: str | None = None):
         content = (
             f"Your appointment is confirmed for "
             f"{appointment.start_time.strftime('%A, %B %d at %I:%M %p')}. "
@@ -248,7 +247,7 @@ class NotificationService:
                 subject="Your appointment is confirmed",
             )
 
-    async def send_appointment_reminder(self, appointment: Appointment, customer_email: Optional[str] = None):
+    async def send_appointment_reminder(self, appointment: Appointment, customer_email: str | None = None):
         content = (
             f"Reminder: You have an appointment on "
             f"{appointment.start_time.strftime('%A, %B %d at %I:%M %p')}. "
@@ -266,7 +265,7 @@ class NotificationService:
                 subject="Appointment reminder",
             )
 
-    async def send_cancellation_notice(self, appointment: Appointment, customer_email: Optional[str] = None):
+    async def send_cancellation_notice(self, appointment: Appointment, customer_email: str | None = None):
         content = (
             f"Your appointment on "
             f"{appointment.start_time.strftime('%A, %B %d at %I:%M %p')} has been cancelled. "

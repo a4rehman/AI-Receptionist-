@@ -1,8 +1,7 @@
 import os
-import streamlit as st
+
 import httpx
-import json
-from datetime import datetime
+import streamlit as st
 
 st.set_page_config(page_title="AI Receptionist Admin", layout="wide")
 
@@ -12,7 +11,7 @@ if not API_URL.endswith("/api/v1"):
 API_KEY = os.environ.get("RECEPTIONIST_API_KEY", "")
 
 
-def _headers(tenant: str = None) -> dict:
+def _headers(tenant: str | None = None) -> dict:
     headers = {}
     if API_KEY:
         headers["X-API-Key"] = API_KEY
@@ -21,7 +20,7 @@ def _headers(tenant: str = None) -> dict:
     return headers
 
 
-def api_get(path: str, params: dict = None, tenant: str = None):
+def api_get(path: str, params: dict | None = None, tenant: str | None = None):
     try:
         resp = httpx.get(f"{API_URL}{path}", params=params,
                          headers=_headers(tenant), timeout=10)
@@ -33,16 +32,16 @@ def api_get(path: str, params: dict = None, tenant: str = None):
             st.error(f"Access denied: {detail}")
             return []
         return resp.json() if resp.status_code == 200 else []
-    except Exception:
+    except Exception:  # noqa: BLE001 - surface connection errors as empty UI state
         return []
 
 
-def api_post(path: str, data: dict, tenant: str = None):
+def api_post(path: str, data: dict, tenant: str | None = None):
     try:
         resp = httpx.post(f"{API_URL}{path}", json=data,
                           headers=_headers(tenant), timeout=30)
         return resp.json() if resp.status_code == 200 else {"error": resp.text}
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - surface connection errors in the UI
         return {"error": str(e)}
 
 

@@ -1,6 +1,5 @@
 from receptionist.agent.state import ReceptionistState
 
-
 INTENT_TO_NODE = {
     "faq": "faq_handler",
     "services": "service_handler",

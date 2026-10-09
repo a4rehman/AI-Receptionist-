@@ -1,8 +1,10 @@
-from typing import Any, Callable, Awaitable, Optional
-from pydantic import BaseModel
-from functools import wraps
 import time
+from collections.abc import Awaitable, Callable
+from functools import wraps
+from typing import Any
+
 import structlog
+from pydantic import BaseModel
 
 logger = structlog.get_logger()
 
@@ -13,7 +15,7 @@ READ_PERMISSIONS = {"read"}
 
 
 class ToolContext:
-    def __init__(self, tenant_id: str, conversation_id: str, customer_id: Optional[str] = None, db_session: Any = None, enabled_tools: Optional[list[str]] = None, run_id: Optional[str] = None):
+    def __init__(self, tenant_id: str, conversation_id: str, customer_id: str | None = None, db_session: Any = None, enabled_tools: list[str] | None = None, run_id: str | None = None):
         self.tenant_id = tenant_id
         self.conversation_id = conversation_id
         self.customer_id = customer_id
@@ -32,7 +34,7 @@ class ToolContext:
 
 
 class ToolResult:
-    def __init__(self, success: bool, data: Any = None, error: Optional[str] = None):
+    def __init__(self, success: bool, data: Any = None, error: str | None = None):
         self.success = success
         self.data = data
         self.error = error
@@ -107,7 +109,7 @@ def tool(name: str, description: str, input_schema: type[BaseModel], permission:
     return decorator
 
 
-def get_tool(name: str) -> Optional[ToolDefinition]:
+def get_tool(name: str) -> ToolDefinition | None:
     return _tool_registry.get(name)
 
 
@@ -119,11 +121,12 @@ def get_tools_for_tenant(enabled_tools: list[str]) -> list[ToolDefinition]:
     return [t for t in _tool_registry.values() if t.name in enabled_tools]
 
 
-async def _log_tool_call(ctx: ToolContext, tool_name: str, args: tuple, result: Any, duration_ms: int, error: Optional[str]) -> None:
+async def _log_tool_call(ctx: ToolContext, tool_name: str, args: tuple, result: Any, duration_ms: int, error: str | None) -> None:
     if not getattr(ctx, "run_id", None):
         return
     try:
         from pydantic import BaseModel
+
         from receptionist.db.models import ToolCall
 
         raw_args = args[0] if args else None
@@ -145,7 +148,7 @@ async def _log_tool_call(ctx: ToolContext, tool_name: str, args: tuple, result: 
         )
         ctx.db_session.add(tool_call)
         await ctx.db_session.flush()
-    except Exception:
+    except Exception:  # noqa: BLE001 - audit logging must never break the tool call
         logger.warning("failed to log tool call", tool_name=tool_name)
 
 
@@ -164,5 +167,5 @@ async def _log_agent_event(ctx: ToolContext, tool_name: str, status: str, durati
             duration_ms=duration_ms,
         ))
         await ctx.db_session.flush()
-    except Exception:
+    except Exception:  # noqa: BLE001 - audit logging must never break the tool call
         logger.warning("failed to log agent event", tool_name=tool_name)

@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 import pytest
 
 from receptionist.config import get_settings
@@ -48,7 +50,7 @@ class FakeResponse:
 
 
 class FakeAsyncClient:
-    instances: list["FakeAsyncClient"] = []
+    instances: ClassVar[list["FakeAsyncClient"]] = []
 
     def __init__(self, *args, **kwargs):
         self.posts: list[tuple[str, dict]] = []

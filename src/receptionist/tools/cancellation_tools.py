@@ -1,17 +1,16 @@
-import uuid
-from typing import Optional
 from pydantic import BaseModel, Field
 from sqlalchemy import select
-from receptionist.tools.registry import tool, ToolContext, ToolResult
+
 from receptionist.db.models import Appointment, AppointmentStatus, AppointmentStatusHistory, Customer
-from receptionist.utils.idempotency import generate_idempotency_key, check_idempotency, save_idempotency_result
+from receptionist.tools.registry import ToolContext, ToolResult, tool
+from receptionist.utils.idempotency import check_idempotency, generate_idempotency_key, save_idempotency_result
 
 
 class CancelBookingArgs(BaseModel):
     appointment_id: str = Field(..., description="Appointment ID to cancel")
     customer_id: str = Field(..., description="Customer ID (for verification)")
-    reason: Optional[str] = Field(None, description="Cancellation reason")
-    idempotency_key: Optional[str] = Field(None, description="Idempotency key")
+    reason: str | None = Field(None, description="Cancellation reason")
+    idempotency_key: str | None = Field(None, description="Idempotency key")
 
 
 @tool(name="cancel_booking", description="Cancel an existing appointment", input_schema=CancelBookingArgs, permission="write")

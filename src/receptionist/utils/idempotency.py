@@ -1,8 +1,9 @@
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from receptionist.db.models import IdempotencyKey
 
 
@@ -15,7 +16,7 @@ async def check_idempotency(
     tenant_id: str,
     operation: str,
     key: str,
-) -> Optional[dict]:
+) -> dict | None:
     stmt = select(IdempotencyKey).where(
         IdempotencyKey.tenant_id == tenant_id,
         IdempotencyKey.operation == operation,
@@ -40,7 +41,7 @@ async def save_idempotency_result(
         operation=operation,
         key=key,
         result=result,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
     session.add(record)
     await session.flush()

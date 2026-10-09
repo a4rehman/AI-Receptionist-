@@ -1,10 +1,20 @@
+from datetime import date, datetime, time, timedelta
+
 import pytest
 import pytest_asyncio
-from datetime import date, datetime, time, timedelta
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
 from receptionist.db.models import (
-    Base, Tenant, Staff, Service, StaffService, StaffSchedule,
-    Appointment, AppointmentStatus, BusinessHours, Customer,
+    Appointment,
+    AppointmentStatus,
+    Base,
+    BusinessHours,
+    Customer,
+    Service,
+    Staff,
+    StaffSchedule,
+    StaffService,
+    Tenant,
 )
 from receptionist.services.availability import AvailabilityService
 

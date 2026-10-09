@@ -1,6 +1,7 @@
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
+
 from receptionist.api.auth import resolve_api_key
 from receptionist.config import get_settings
 

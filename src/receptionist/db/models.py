@@ -1,10 +1,8 @@
 import enum
-from datetime import datetime, timezone
-from typing import Optional
-from sqlalchemy import (
-    String, Integer, Float, Boolean, Text, DateTime, ForeignKey, Enum as SQLEnum,
-    UniqueConstraint, Index, JSON
-)
+from datetime import UTC, datetime
+
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -13,7 +11,7 @@ class Base(DeclarativeBase):
 
 
 def utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class BusinessType(str, enum.Enum):
@@ -78,10 +76,10 @@ class Tenant(Base):
     timezone: Mapped[str] = mapped_column(String(64), default="UTC")
     currency: Mapped[str] = mapped_column(String(8), default="USD")
     country: Mapped[str] = mapped_column(String(64), default="US")
-    phone: Mapped[Optional[str]] = mapped_column(String(32))
-    email: Mapped[Optional[str]] = mapped_column(String(255))
-    website: Mapped[Optional[str]] = mapped_column(String(255))
-    address: Mapped[Optional[str]] = mapped_column(Text)
+    phone: Mapped[str | None] = mapped_column(String(32))
+    email: Mapped[str | None] = mapped_column(String(255))
+    website: Mapped[str | None] = mapped_column(String(255))
+    address: Mapped[str | None] = mapped_column(Text)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
@@ -96,7 +94,7 @@ class TenantSetting(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     tenant_id: Mapped[str] = mapped_column(String(64), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     key: Mapped[str] = mapped_column(String(128), nullable=False)
-    value: Mapped[Optional[str]] = mapped_column(Text)
+    value: Mapped[str | None] = mapped_column(Text)
 
     tenant: Mapped["Tenant"] = relationship(back_populates="settings")
 
@@ -107,9 +105,9 @@ class Location(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String(64), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    address: Mapped[Optional[str]] = mapped_column(Text)
-    phone: Mapped[Optional[str]] = mapped_column(String(32))
-    timezone: Mapped[Optional[str]] = mapped_column(String(64))
+    address: Mapped[str | None] = mapped_column(Text)
+    phone: Mapped[str | None] = mapped_column(String(32))
+    timezone: Mapped[str | None] = mapped_column(String(64))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
@@ -119,11 +117,11 @@ class Staff(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String(64), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    role: Mapped[Optional[str]] = mapped_column(String(128))
-    specialization: Mapped[Optional[str]] = mapped_column(String(255))
-    department: Mapped[Optional[str]] = mapped_column(String(255))
-    email: Mapped[Optional[str]] = mapped_column(String(255))
-    phone: Mapped[Optional[str]] = mapped_column(String(32))
+    role: Mapped[str | None] = mapped_column(String(128))
+    specialization: Mapped[str | None] = mapped_column(String(255))
+    department: Mapped[str | None] = mapped_column(String(255))
+    email: Mapped[str | None] = mapped_column(String(255))
+    phone: Mapped[str | None] = mapped_column(String(32))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     schedules: Mapped[list["StaffSchedule"]] = relationship(back_populates="staff", cascade="all, delete-orphan")
@@ -149,9 +147,9 @@ class Service(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String(64), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    description: Mapped[Optional[str]] = mapped_column(Text)
+    description: Mapped[str | None] = mapped_column(Text)
     duration_minutes: Mapped[int] = mapped_column(Integer, default=30)
-    price: Mapped[Optional[float]] = mapped_column(Float)
+    price: Mapped[float | None] = mapped_column(Float)
     currency: Mapped[str] = mapped_column(String(8), default="USD")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
@@ -173,11 +171,11 @@ class Customer(Base):
     tenant_id: Mapped[str] = mapped_column(String(64), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     first_name: Mapped[str] = mapped_column(String(128), nullable=False)
     last_name: Mapped[str] = mapped_column(String(128), nullable=False)
-    email: Mapped[Optional[str]] = mapped_column(String(255), index=True)
-    phone: Mapped[Optional[str]] = mapped_column(String(32), index=True)
-    date_of_birth: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    notes: Mapped[Optional[str]] = mapped_column(Text)
-    preferences: Mapped[Optional[dict]] = mapped_column(JSON)
+    email: Mapped[str | None] = mapped_column(String(255), index=True)
+    phone: Mapped[str | None] = mapped_column(String(32), index=True)
+    date_of_birth: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    notes: Mapped[str | None] = mapped_column(Text)
+    preferences: Mapped[dict | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
@@ -197,14 +195,14 @@ class Appointment(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String(64), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     customer_id: Mapped[str] = mapped_column(String(64), ForeignKey("customers.id", ondelete="CASCADE"), nullable=False, index=True)
-    staff_id: Mapped[Optional[str]] = mapped_column(String(64), ForeignKey("staff.id", ondelete="SET NULL"), index=True)
-    service_id: Mapped[Optional[str]] = mapped_column(String(64), ForeignKey("services.id", ondelete="SET NULL"), index=True)
-    location_id: Mapped[Optional[str]] = mapped_column(String(64), ForeignKey("locations.id", ondelete="SET NULL"))
+    staff_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("staff.id", ondelete="SET NULL"), index=True)
+    service_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("services.id", ondelete="SET NULL"), index=True)
+    location_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("locations.id", ondelete="SET NULL"))
     start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     status: Mapped[AppointmentStatus] = mapped_column(SQLEnum(AppointmentStatus), default=AppointmentStatus.PENDING)
-    idempotency_key: Mapped[Optional[str]] = mapped_column(String(64))
-    notes: Mapped[Optional[str]] = mapped_column(Text)
+    idempotency_key: Mapped[str | None] = mapped_column(String(64))
+    notes: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 
@@ -214,10 +212,10 @@ class AppointmentStatusHistory(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     appointment_id: Mapped[str] = mapped_column(String(64), ForeignKey("appointments.id", ondelete="CASCADE"), nullable=False, index=True)
-    from_status: Mapped[Optional[str]] = mapped_column(String(32))
+    from_status: Mapped[str | None] = mapped_column(String(32))
     to_status: Mapped[str] = mapped_column(String(32), nullable=False)
     changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    changed_by: Mapped[Optional[str]] = mapped_column(String(64))
+    changed_by: Mapped[str | None] = mapped_column(String(64))
 
 
 class Conversation(Base):
@@ -225,7 +223,7 @@ class Conversation(Base):
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String(64), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    customer_id: Mapped[Optional[str]] = mapped_column(String(64), ForeignKey("customers.id", ondelete="SET NULL"), index=True)
+    customer_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("customers.id", ondelete="SET NULL"), index=True)
     channel: Mapped[str] = mapped_column(String(32), default="web")
     status: Mapped[str] = mapped_column(String(32), default="active")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
@@ -254,8 +252,8 @@ class AgentRun(Base):
     tenant_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     status: Mapped[str] = mapped_column(String(32), default="running")
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    error: Mapped[Optional[str]] = mapped_column(Text)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    error: Mapped[str | None] = mapped_column(Text)
 
 
 class AgentEvent(Base):
@@ -265,11 +263,11 @@ class AgentEvent(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     run_id: Mapped[str] = mapped_column(String(64), ForeignKey("agent_runs.id", ondelete="CASCADE"), nullable=False)
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    node_name: Mapped[Optional[str]] = mapped_column(String(128))
-    tool_name: Mapped[Optional[str]] = mapped_column(String(128))
-    status: Mapped[Optional[str]] = mapped_column(String(32))
-    duration_ms: Mapped[Optional[int]] = mapped_column(Integer)
-    metadata_: Mapped[Optional[dict]] = mapped_column("metadata", JSON)
+    node_name: Mapped[str | None] = mapped_column(String(128))
+    tool_name: Mapped[str | None] = mapped_column(String(128))
+    status: Mapped[str | None] = mapped_column(String(32))
+    duration_ms: Mapped[int | None] = mapped_column(Integer)
+    metadata_: Mapped[dict | None] = mapped_column("metadata", JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
@@ -280,11 +278,11 @@ class ToolCall(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     run_id: Mapped[str] = mapped_column(String(64), ForeignKey("agent_runs.id", ondelete="CASCADE"), nullable=False)
     tool_name: Mapped[str] = mapped_column(String(128), nullable=False)
-    arguments: Mapped[Optional[dict]] = mapped_column(JSON)
-    result: Mapped[Optional[dict]] = mapped_column(JSON)
+    arguments: Mapped[dict | None] = mapped_column(JSON)
+    result: Mapped[dict | None] = mapped_column(JSON)
     status: Mapped[str] = mapped_column(String(32), default="pending")
-    duration_ms: Mapped[Optional[int]] = mapped_column(Integer)
-    error: Mapped[Optional[str]] = mapped_column(Text)
+    duration_ms: Mapped[int | None] = mapped_column(Integer)
+    error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
@@ -294,13 +292,13 @@ class HumanHandoff(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String(64), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     conversation_id: Mapped[str] = mapped_column(String(64), ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False, index=True)
-    customer_id: Mapped[Optional[str]] = mapped_column(String(64))
+    customer_id: Mapped[str | None] = mapped_column(String(64))
     reason: Mapped[str] = mapped_column(String(255), nullable=False)
     priority: Mapped[HandoffPriority] = mapped_column(SQLEnum(HandoffPriority), default=HandoffPriority.MEDIUM)
     status: Mapped[HandoffStatus] = mapped_column(SQLEnum(HandoffStatus), default=HandoffStatus.OPEN)
-    assigned_to: Mapped[Optional[str]] = mapped_column(String(64))
+    assigned_to: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Notification(Base):
@@ -308,16 +306,16 @@ class Notification(Base):
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String(64), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
-    appointment_id: Mapped[Optional[str]] = mapped_column(String(64), ForeignKey("appointments.id", ondelete="CASCADE"), index=True)
-    customer_id: Mapped[Optional[str]] = mapped_column(String(64))
+    appointment_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("appointments.id", ondelete="CASCADE"), index=True)
+    customer_id: Mapped[str | None] = mapped_column(String(64))
     notification_type: Mapped[str] = mapped_column(String(64), nullable=False)
     channel: Mapped[NotificationChannel] = mapped_column(SQLEnum(NotificationChannel), nullable=False)
     recipient: Mapped[str] = mapped_column(String(255), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[NotificationStatus] = mapped_column(SQLEnum(NotificationStatus), default=NotificationStatus.PENDING)
-    scheduled_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    sent_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
-    error: Mapped[Optional[str]] = mapped_column(Text)
+    scheduled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
@@ -328,7 +326,7 @@ class FAQ(Base):
     tenant_id: Mapped[str] = mapped_column(String(64), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     question: Mapped[str] = mapped_column(Text, nullable=False)
     answer: Mapped[str] = mapped_column(Text, nullable=False)
-    category: Mapped[Optional[str]] = mapped_column(String(128))
+    category: Mapped[str | None] = mapped_column(String(128))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
@@ -339,12 +337,12 @@ class AuditLog(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
     action: Mapped[str] = mapped_column(String(128), nullable=False)
-    entity_type: Mapped[Optional[str]] = mapped_column(String(64))
-    entity_id: Mapped[Optional[str]] = mapped_column(String(64))
-    actor: Mapped[Optional[str]] = mapped_column(String(64))
-    conversation_id: Mapped[Optional[str]] = mapped_column(String(64))
-    agent_run_id: Mapped[Optional[str]] = mapped_column(String(64))
-    details: Mapped[Optional[dict]] = mapped_column(JSON)
+    entity_type: Mapped[str | None] = mapped_column(String(64))
+    entity_id: Mapped[str | None] = mapped_column(String(64))
+    actor: Mapped[str | None] = mapped_column(String(64))
+    conversation_id: Mapped[str | None] = mapped_column(String(64))
+    agent_run_id: Mapped[str | None] = mapped_column(String(64))
+    details: Mapped[dict | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
@@ -356,7 +354,7 @@ class IdempotencyKey(Base):
     tenant_id: Mapped[str] = mapped_column(String(64), nullable=False)
     operation: Mapped[str] = mapped_column(String(64), nullable=False)
     key: Mapped[str] = mapped_column(String(64), nullable=False)
-    result: Mapped[Optional[dict]] = mapped_column(JSON)
+    result: Mapped[dict | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
@@ -366,7 +364,7 @@ class Holiday(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     tenant_id: Mapped[str] = mapped_column(String(64), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     date: Mapped[str] = mapped_column(String(16), nullable=False)
-    name: Mapped[Optional[str]] = mapped_column(String(255))
+    name: Mapped[str | None] = mapped_column(String(255))
 
 
 class BusinessHours(Base):
@@ -389,13 +387,13 @@ class Reservation(Base):
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
     tenant_id: Mapped[str] = mapped_column(String(64), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True)
     customer_id: Mapped[str] = mapped_column(String(64), ForeignKey("customers.id", ondelete="CASCADE"), nullable=False, index=True)
-    location_id: Mapped[Optional[str]] = mapped_column(String(64), ForeignKey("locations.id", ondelete="SET NULL"))
+    location_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("locations.id", ondelete="SET NULL"))
     reservation_type: Mapped[str] = mapped_column(String(32), default="table")
     party_size: Mapped[int] = mapped_column(Integer, default=1)
     start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     status: Mapped[str] = mapped_column(String(32), default="pending")
-    special_requests: Mapped[Optional[str]] = mapped_column(Text)
-    idempotency_key: Mapped[Optional[str]] = mapped_column(String(64))
+    special_requests: Mapped[str | None] = mapped_column(Text)
+    idempotency_key: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)

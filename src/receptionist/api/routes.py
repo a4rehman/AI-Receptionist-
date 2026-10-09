@@ -1,20 +1,35 @@
 import uuid
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Header, Query, Request
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from sqlalchemy import select
-from receptionist.api.schemas import (
-    ChatRequest, ChatResponse, AppointmentResponse, AvailabilityRequest,
-    AvailabilityResponse, ServiceResponse, StaffResponse, CustomerResponse,
-    HandoffRequest, HandoffResponse, AgentRunResponse, AgentEventResponse,
-)
-from receptionist.agent.state import ReceptionistState
+
 from receptionist.agent.graph import receptionist_graph
+from receptionist.agent.state import ReceptionistState
+from receptionist.api.schemas import (
+    AgentEventResponse,
+    AgentRunResponse,
+    AppointmentResponse,
+    AvailabilityResponse,
+    ChatRequest,
+    ChatResponse,
+    CustomerResponse,
+    HandoffRequest,
+    HandoffResponse,
+    ServiceResponse,
+    StaffResponse,
+)
 from receptionist.db import engine as db_engine
 from receptionist.db.models import (
-    Appointment, Service, Staff, Customer, Conversation,
-    AgentRun, AgentEvent, HumanHandoff, Tenant,
+    AgentEvent,
+    AgentRun,
+    Appointment,
+    Customer,
+    HumanHandoff,
+    Service,
+    Staff,
+    Tenant,
 )
-from receptionist.db.tenant import set_current_tenant, clear_current_tenant
+from receptionist.db.tenant import clear_current_tenant, set_current_tenant
 from receptionist.services.availability import AvailabilityService
 
 router = APIRouter(prefix="/api/v1")
@@ -22,7 +37,7 @@ router = APIRouter(prefix="/api/v1")
 
 async def get_tenant_id(
     request: Request,
-    x_tenant_id: Optional[str] = Header(None),
+    x_tenant_id: str | None = Header(None),
 ) -> str:
     tenant_id = getattr(request.state, "tenant_id", None)
     if not tenant_id:
@@ -52,7 +67,7 @@ async def chat(payload: ChatRequest, tenant_id: str = Depends(get_tenant_id)):
     try:
         async with db_engine.async_session_factory() as session:
             tenant_result = await session.execute(
-                select(Tenant).where(Tenant.id == tenant_id, Tenant.is_active == True)  # noqa: E712
+                select(Tenant).where(Tenant.id == tenant_id, Tenant.is_active == True)
             )
             if tenant_result.scalar_one_or_none() is None:
                 raise HTTPException(status_code=404, detail="Unknown tenant")
@@ -76,8 +91,8 @@ async def chat(payload: ChatRequest, tenant_id: str = Depends(get_tenant_id)):
 @router.get("/appointments", response_model=list[AppointmentResponse])
 async def list_appointments(
     tenant_id: str = Depends(get_tenant_id),
-    customer_id: Optional[str] = None,
-    status: Optional[str] = None,
+    customer_id: str | None = None,
+    status: str | None = None,
 ):
     set_current_tenant(tenant_id)
     try:
@@ -128,7 +143,7 @@ async def get_availability(
     tenant_id: str = Depends(get_tenant_id),
     service_id: str = Query(...),
     date: str = Query(...),
-    staff_id: Optional[str] = None,
+    staff_id: str | None = None,
     timezone: str = "UTC",
 ):
     set_current_tenant(tenant_id)
@@ -232,7 +247,7 @@ async def create_handoff(payload: HandoffRequest, tenant_id: str = Depends(get_t
 @router.get("/agent-runs", response_model=list[AgentRunResponse])
 async def list_agent_runs(
     tenant_id: str = Depends(get_tenant_id),
-    conversation_id: Optional[str] = None,
+    conversation_id: str | None = None,
 ):
     set_current_tenant(tenant_id)
     try:
@@ -256,7 +271,7 @@ async def list_agent_runs(
 @router.get("/agent-events", response_model=list[AgentEventResponse])
 async def list_agent_events(
     tenant_id: str = Depends(get_tenant_id),
-    run_id: Optional[str] = None,
+    run_id: str | None = None,
 ):
     set_current_tenant(tenant_id)
     try:

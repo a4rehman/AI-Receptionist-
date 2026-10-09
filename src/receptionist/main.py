@@ -1,14 +1,15 @@
-from fastapi import FastAPI, Depends
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from receptionist.api.routes import router
+from sqlalchemy import text
+
+from receptionist.api.auth import get_current_user
+from receptionist.api.errors import global_exception_handler, validation_exception_handler
 from receptionist.api.middleware import APIKeyMiddleware
 from receptionist.api.rate_limit import RateLimitMiddleware
-from receptionist.api.errors import global_exception_handler, validation_exception_handler
-from receptionist.api.auth import get_current_user
-from receptionist.logging_config import setup_logging
+from receptionist.api.routes import router
 from receptionist.config import get_settings
-from sqlalchemy import text
 from receptionist.db import engine as db_engine
+from receptionist.logging_config import setup_logging
 
 setup_logging()
 _settings = get_settings()
@@ -42,22 +43,22 @@ async def health():
 
 
 @app.get("/health/database")
-async def health_database(user: dict = Depends(get_current_user)):
+async def health_database(user: dict = Depends(get_current_user)):  # noqa: B008
     try:
         async with db_engine.async_session_factory() as session:
             await session.execute(text("SELECT 1"))
         return {"status": "healthy", "database": "connected"}
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - health probe reports any driver error
         return {"status": "unhealthy", "database": str(e)}
 
 
 @app.get("/health/llm")
-async def health_llm(user: dict = Depends(get_current_user)):
+async def health_llm(user: dict = Depends(get_current_user)):  # noqa: B008
     return {"status": "healthy", "llm_provider": _settings.llm_provider}
 
 
 @app.get("/health/notifications")
-async def health_notifications(user: dict = Depends(get_current_user)):
+async def health_notifications(user: dict = Depends(get_current_user)):  # noqa: B008
     return {
         "status": "healthy",
         "email_configured": bool(_settings.smtp_host),

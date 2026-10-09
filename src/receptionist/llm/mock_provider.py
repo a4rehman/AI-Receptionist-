@@ -1,5 +1,7 @@
 from typing import Any
+
 from pydantic import BaseModel
+
 from receptionist.llm.base import BaseLLMProvider
 
 

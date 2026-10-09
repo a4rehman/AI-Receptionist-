@@ -1,13 +1,14 @@
-from typing import Optional
+
 from pydantic import BaseModel, Field
 from sqlalchemy import select
-from receptionist.tools.registry import tool, ToolContext, ToolResult
-from receptionist.db.models import Staff, Service, StaffService, StaffSchedule
+
+from receptionist.db.models import Service, Staff, StaffSchedule, StaffService
+from receptionist.tools.registry import ToolContext, ToolResult, tool
 
 
 class ListStaffArgs(BaseModel):
-    department: Optional[str] = Field(None, description="Filter by department")
-    specialization: Optional[str] = Field(None, description="Filter by specialization")
+    department: str | None = Field(None, description="Filter by department")
+    specialization: str | None = Field(None, description="Filter by specialization")
     is_active: bool = Field(True, description="Only return active staff")
 
 

@@ -1,8 +1,8 @@
-from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy import select
-from receptionist.tools.registry import tool, ToolContext, ToolResult
-from receptionist.db.models import Tenant, BusinessHours, Location
+
+from receptionist.db.models import BusinessHours, Location, Tenant
+from receptionist.tools.registry import ToolContext, ToolResult, tool
 
 
 class GetBusinessInfoArgs(BaseModel):

@@ -1,14 +1,15 @@
 import uuid
-from typing import Optional
+
 from pydantic import BaseModel, Field
-from receptionist.tools.registry import tool, ToolContext, ToolResult
-from receptionist.db.models import HumanHandoff, HandoffStatus, HandoffPriority
+
+from receptionist.db.models import HandoffPriority, HandoffStatus, HumanHandoff
+from receptionist.tools.registry import ToolContext, ToolResult, tool
 
 
 class CreateHandoffArgs(BaseModel):
     reason: str = Field(..., description="Reason for human handoff")
     priority: str = Field("medium", description="Priority level: low, medium, high, urgent")
-    customer_id: Optional[str] = Field(None, description="Customer ID if known")
+    customer_id: str | None = Field(None, description="Customer ID if known")
 
 
 @tool(name="create_handoff", description="Create a human handoff request", input_schema=CreateHandoffArgs, permission="write")

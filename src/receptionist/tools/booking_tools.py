@@ -1,23 +1,24 @@
 import uuid
-from datetime import datetime, timedelta, time
-from typing import Optional
+from datetime import datetime, time, timedelta
+
 from pydantic import BaseModel, Field
-from sqlalchemy import select, and_, text
-from receptionist.tools.registry import tool, ToolContext, ToolResult
-from receptionist.db.models import Appointment, AppointmentStatus, AppointmentStatusHistory, Service, Staff, Customer
+from sqlalchemy import select
+
+from receptionist.db.models import Appointment, AppointmentStatus, AppointmentStatusHistory, Customer, Service
 from receptionist.services.availability import AvailabilityService
-from receptionist.utils.idempotency import generate_idempotency_key, check_idempotency, save_idempotency_result
+from receptionist.tools.registry import ToolContext, ToolResult, tool
+from receptionist.utils.idempotency import check_idempotency, generate_idempotency_key, save_idempotency_result
 
 
 class CreateBookingArgs(BaseModel):
     customer_id: str = Field(..., description="Customer ID")
     service_id: str = Field(..., description="Service ID")
-    staff_id: Optional[str] = Field(None, description="Preferred staff ID")
+    staff_id: str | None = Field(None, description="Preferred staff ID")
     date: str = Field(..., description="Appointment date (YYYY-MM-DD)")
     time: str = Field(..., description="Appointment time (HH:MM)")
     timezone: str = Field("UTC", description="Timezone")
-    notes: Optional[str] = Field(None, description="Optional notes")
-    idempotency_key: Optional[str] = Field(None, description="Idempotency key for safe retries")
+    notes: str | None = Field(None, description="Optional notes")
+    idempotency_key: str | None = Field(None, description="Idempotency key for safe retries")
 
 
 @tool(name="create_booking", description="Create a new appointment booking", input_schema=CreateBookingArgs, permission="write")
@@ -135,7 +136,7 @@ async def _create_booking_with_session(args: CreateBookingArgs, ctx: ToolContext
 
         return ToolResult(success=True, data=result_data)
 
-    except Exception:
+    except Exception:  # noqa: BLE001 - booking boundary rolls back and returns ToolResult
         await session.rollback()
         import structlog
         structlog.get_logger().error("booking_failed", tenant_id=ctx.tenant_id, exc_info=True)

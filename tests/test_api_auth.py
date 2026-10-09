@@ -1,6 +1,6 @@
-from fastapi.testclient import TestClient
 import pytest
 import pytest_asyncio
+from fastapi.testclient import TestClient
 
 from receptionist.main import app
 
@@ -16,7 +16,7 @@ def client():
 
 @pytest_asyncio.fixture(autouse=True)
 async def seeded_tenants(db_session):
-    from receptionist.db.models import Tenant, Service
+    from receptionist.db.models import Service, Tenant
 
     db_session.add(Tenant(id="clinic_001", business_type="dental_clinic",
                           business_name="Clinic A", timezone="UTC"))

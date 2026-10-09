@@ -1,8 +1,7 @@
-from datetime import datetime, timedelta, timezone, date
-from typing import Optional
 import re
-import pytz
+from datetime import date, datetime, timedelta
 
+import pytz
 
 DAY_MAP = {
     "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3,
@@ -10,9 +9,9 @@ DAY_MAP = {
 }
 
 
-def parse_relative_date(text: str, tz: str = "UTC") -> Optional[date]:
+def parse_relative_date(text: str, tz: str = "UTC") -> date | None:
     text_lower = text.lower().strip()
-    today = date.today()
+    today = date.today()  # noqa: DTZ011 - server-local date; tenant tz not threaded through yet
 
     if "today" in text_lower:
         return today
@@ -44,7 +43,7 @@ def parse_relative_date(text: str, tz: str = "UTC") -> Optional[date]:
     return None
 
 
-def parse_time_of_day(text: str) -> Optional[str]:
+def parse_time_of_day(text: str) -> str | None:
     text_lower = text.lower().strip()
 
     hhmm = re.search(r"\b(\d{1,2}):(\d{2})\s*(am|pm)?\b", text_lower)

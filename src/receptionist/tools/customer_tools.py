@@ -1,8 +1,9 @@
-from typing import Optional
+
 from pydantic import BaseModel, Field
-from sqlalchemy import select, and_
-from receptionist.tools.registry import tool, ToolContext, ToolResult
-from receptionist.db.models import Customer, Appointment, Service, Staff
+from sqlalchemy import select
+
+from receptionist.db.models import Appointment, Customer, Service, Staff
+from receptionist.tools.registry import ToolContext, ToolResult, tool
 
 
 class GetCustomerArgs(BaseModel):
@@ -20,24 +21,24 @@ class FindCustomerByEmailArgs(BaseModel):
 class CreateCustomerArgs(BaseModel):
     first_name: str = Field(..., description="Customer first name")
     last_name: str = Field(..., description="Customer last name")
-    email: Optional[str] = Field(None, description="Customer email")
-    phone: Optional[str] = Field(None, description="Customer phone number")
-    date_of_birth: Optional[str] = Field(None, description="Date of birth (YYYY-MM-DD)")
-    notes: Optional[str] = Field(None, description="Additional notes")
+    email: str | None = Field(None, description="Customer email")
+    phone: str | None = Field(None, description="Customer phone number")
+    date_of_birth: str | None = Field(None, description="Date of birth (YYYY-MM-DD)")
+    notes: str | None = Field(None, description="Additional notes")
 
 
 class UpdateCustomerArgs(BaseModel):
     customer_id: str = Field(..., description="Customer ID to update")
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
-    email: Optional[str] = None
-    phone: Optional[str] = None
-    notes: Optional[str] = None
+    first_name: str | None = None
+    last_name: str | None = None
+    email: str | None = None
+    phone: str | None = None
+    notes: str | None = None
 
 
 class GetCustomerAppointmentsArgs(BaseModel):
     customer_id: str = Field(..., description="Customer ID")
-    status: Optional[str] = Field(None, description="Filter by status")
+    status: str | None = Field(None, description="Filter by status")
     limit: int = Field(10, description="Maximum number of appointments")
 
 
@@ -110,6 +111,7 @@ async def find_customer_by_email(args: FindCustomerByEmailArgs, ctx: ToolContext
 @tool(name="create_customer", description="Create a new customer record", input_schema=CreateCustomerArgs, permission="write")
 async def create_customer(args: CreateCustomerArgs, ctx: ToolContext) -> ToolResult:
     import uuid
+
     from receptionist.db.engine import async_session_factory
     async with async_session_factory() as session:
         customer = Customer(

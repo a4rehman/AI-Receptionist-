@@ -1,12 +1,19 @@
-from datetime import datetime, timedelta, date, time
-from typing import Optional
+from datetime import date, datetime, time, timedelta
+
 import pytz
-from sqlalchemy import select, and_, or_
+from sqlalchemy import select
+
 from receptionist.db.models import (
-    Appointment, AppointmentStatus, StaffSchedule, StaffService,
-    Service, Holiday, BusinessHours, Staff,
+    Appointment,
+    AppointmentStatus,
+    BusinessHours,
+    Holiday,
+    Service,
+    Staff,
+    StaffSchedule,
+    StaffService,
 )
-from receptionist.utils.datetime_utils import time_to_minutes, minutes_to_time
+from receptionist.utils.datetime_utils import minutes_to_time, time_to_minutes
 
 
 class AvailabilityService:
@@ -18,9 +25,9 @@ class AvailabilityService:
         tenant_id: str,
         service_id: str,
         target_date: date,
-        staff_id: Optional[str] = None,
+        staff_id: str | None = None,
         timezone: str = "UTC",
-        duration_minutes: Optional[int] = None,
+        duration_minutes: int | None = None,
         buffer_minutes: int = 0,
     ) -> list[dict]:
         service_result = await self.session.execute(

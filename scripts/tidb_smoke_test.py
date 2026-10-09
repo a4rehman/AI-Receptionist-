@@ -13,24 +13,32 @@ Required environment variables:
 
 import asyncio
 import ssl
+import sys
 import uuid
-from datetime import date, datetime, time, timedelta
+from datetime import date, timedelta
 
 from sqlalchemy import select, text
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from receptionist.config import get_settings
 from receptionist.db.models import (
-    Base, Tenant, Location, Staff, Service, StaffService,
-    StaffSchedule, BusinessHours, Customer, Appointment,
-    AppointmentStatus, Conversation, Message, AgentRun,
-    HumanHandoff, AuditLog, IdempotencyKey,
+    Appointment,
+    AppointmentStatus,
+    Base,
+    BusinessHours,
+    Customer,
+    Location,
+    Service,
+    Staff,
+    StaffSchedule,
+    StaffService,
+    Tenant,
 )
-from receptionist.db.tenant import set_current_tenant, clear_current_tenant
+from receptionist.db.tenant import clear_current_tenant, set_current_tenant
 from receptionist.services.availability import AvailabilityService
-from receptionist.tools.booking_tools import create_booking, CreateBookingArgs, ToolContext
-from receptionist.tools.cancellation_tools import cancel_booking, CancelBookingArgs
-from receptionist.tools.reschedule_tools import reschedule_booking, RescheduleBookingArgs
+from receptionist.tools.booking_tools import CreateBookingArgs, ToolContext, create_booking
+from receptionist.tools.cancellation_tools import CancelBookingArgs, cancel_booking
+from receptionist.tools.reschedule_tools import RescheduleBookingArgs, reschedule_booking
 
 TEST_TENANT_ID = "production_smoke_test_tenant"
 
@@ -283,7 +291,7 @@ async def run_smoke_test():
         print("=" * 60)
         return True
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - script entrypoint reports and returns False
         print(f"[FAIL] Smoke test failed with error: {e}")
         import traceback
         traceback.print_exc()
@@ -298,4 +306,4 @@ if __name__ == "__main__":
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     success = asyncio.run(run_smoke_test())
-    exit(0 if success else 1)
+    sys.exit(0 if success else 1)

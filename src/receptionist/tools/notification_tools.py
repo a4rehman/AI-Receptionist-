@@ -1,6 +1,6 @@
-from typing import Optional
 from pydantic import BaseModel, Field
-from receptionist.tools.registry import tool, ToolContext, ToolResult
+
+from receptionist.tools.registry import ToolContext, ToolResult, tool
 
 
 class SendNotificationArgs(BaseModel):
@@ -13,8 +13,8 @@ class SendNotificationArgs(BaseModel):
 @tool(name="send_notification", description="Send a notification to a customer", input_schema=SendNotificationArgs, permission="write")
 async def send_notification(args: SendNotificationArgs, ctx: ToolContext) -> ToolResult:
     from receptionist.db.engine import async_session_factory
-    from receptionist.services.notification import NotificationService
     from receptionist.db.models import NotificationChannel
+    from receptionist.services.notification import NotificationService
 
     try:
         channel = NotificationChannel(args.channel)

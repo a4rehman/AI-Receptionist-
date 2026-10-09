@@ -1,11 +1,10 @@
 import re
-from typing import Optional
 
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from receptionist.db.models import FAQ
-from receptionist.tools.registry import ToolResult, ToolContext, tool
+from receptionist.tools.registry import ToolContext, ToolResult, tool
 
 _STOPWORDS = {
     "the", "a", "an", "and", "or", "but", "is", "are", "was", "were", "be", "been",
@@ -26,7 +25,7 @@ def _search_tokens(text: str) -> list[str]:
 
 class SearchFAQArgs(BaseModel):
     query: str = Field(..., description="Search query for FAQ")
-    category: Optional[str] = Field(None, description="Filter by category")
+    category: str | None = Field(None, description="Filter by category")
     limit: int = Field(5, description="Maximum results")
 
 
@@ -37,7 +36,7 @@ async def search_faq(args: SearchFAQArgs, ctx: ToolContext) -> ToolResult:
     async with async_session_factory() as session:
         stmt = select(FAQ).where(
             FAQ.tenant_id == ctx.tenant_id,
-            FAQ.is_active == True,  # noqa: E712
+            FAQ.is_active == True,
         )
         if args.category:
             stmt = stmt.where(FAQ.category == args.category)

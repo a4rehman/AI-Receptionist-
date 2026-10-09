@@ -1,8 +1,8 @@
-from typing import Optional
 from pydantic import BaseModel, Field
 from sqlalchemy import select
-from receptionist.tools.registry import tool, ToolContext, ToolResult
-from receptionist.db.models import Service, StaffService, Staff
+
+from receptionist.db.models import Service, Staff, StaffService
+from receptionist.tools.registry import ToolContext, ToolResult, tool
 
 
 class ListServicesArgs(BaseModel):

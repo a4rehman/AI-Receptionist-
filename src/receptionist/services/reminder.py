@@ -1,9 +1,10 @@
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.date import DateTrigger
-from sqlalchemy import select, and_
-from receptionist.db.models import Appointment, AppointmentStatus, Notification, NotificationChannel, NotificationStatus
+from sqlalchemy import select
+
+from receptionist.db.models import Appointment, AppointmentStatus
 from receptionist.services.notification import NotificationService
 
 
@@ -11,7 +12,7 @@ class ReminderService:
     def __init__(self, session_factory):
         self.session_factory = session_factory
         self.scheduler = AsyncIOScheduler()
-        self.notification_service: Optional[NotificationService] = None
+        self.notification_service: NotificationService | None = None
 
     def start(self):
         self.scheduler.start()
@@ -19,7 +20,7 @@ class ReminderService:
     def shutdown(self):
         self.scheduler.shutdown()
 
-    async def schedule_reminders(self, appointment: Appointment, reminder_hours: list[int] = None):
+    async def schedule_reminders(self, appointment: Appointment, reminder_hours: list[int] | None = None):
         if reminder_hours is None:
             reminder_hours = [24, 2]
 
@@ -27,7 +28,7 @@ class ReminderService:
             self.notification_service = NotificationService(session)
             for hours in reminder_hours:
                 reminder_time = appointment.start_time - timedelta(hours=hours)
-                if reminder_time > datetime.now(timezone.utc):
+                if reminder_time > datetime.now(UTC):
                     self.scheduler.add_job(
                         self._send_reminder,
                         trigger=DateTrigger(run_date=reminder_time),
@@ -63,7 +64,7 @@ class ReminderService:
                 select(Appointment).where(
                     Appointment.tenant_id == tenant_id,
                     Appointment.status == AppointmentStatus.CONFIRMED,
-                    Appointment.start_time > datetime.now(timezone.utc),
+                    Appointment.start_time > datetime.now(UTC),
                 ).order_by(Appointment.start_time)
             )
             return result.scalars().all()

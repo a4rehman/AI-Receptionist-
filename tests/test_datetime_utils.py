@@ -1,8 +1,11 @@
-from datetime import date, datetime
-import pytest
+from datetime import date
+
 from receptionist.utils.datetime_utils import (
-    parse_relative_date, parse_time_of_day, convert_to_utc, convert_from_utc,
-    format_datetime, add_minutes, time_to_minutes, minutes_to_time,
+    add_minutes,
+    minutes_to_time,
+    parse_relative_date,
+    parse_time_of_day,
+    time_to_minutes,
 )
 
 

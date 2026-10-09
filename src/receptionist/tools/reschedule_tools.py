@@ -1,12 +1,12 @@
-import uuid
-from datetime import datetime, timedelta, time
-from typing import Optional
+from datetime import datetime, time, timedelta
+
 from pydantic import BaseModel, Field
 from sqlalchemy import select
-from receptionist.tools.registry import tool, ToolContext, ToolResult
-from receptionist.db.models import Appointment, AppointmentStatus, AppointmentStatusHistory, Service, Customer
+
+from receptionist.db.models import Appointment, AppointmentStatus, AppointmentStatusHistory, Customer, Service
 from receptionist.services.availability import AvailabilityService
-from receptionist.utils.idempotency import generate_idempotency_key, check_idempotency, save_idempotency_result
+from receptionist.tools.registry import ToolContext, ToolResult, tool
+from receptionist.utils.idempotency import check_idempotency, generate_idempotency_key, save_idempotency_result
 
 
 class RescheduleBookingArgs(BaseModel):
@@ -15,7 +15,7 @@ class RescheduleBookingArgs(BaseModel):
     new_date: str = Field(..., description="New date (YYYY-MM-DD)")
     new_time: str = Field(..., description="New time (HH:MM)")
     timezone: str = Field("UTC", description="Timezone")
-    idempotency_key: Optional[str] = Field(None, description="Idempotency key")
+    idempotency_key: str | None = Field(None, description="Idempotency key")
 
 
 @tool(name="reschedule_booking", description="Reschedule an existing appointment to a new date/time", input_schema=RescheduleBookingArgs, permission="write")
@@ -74,7 +74,6 @@ async def reschedule_booking(args: RescheduleBookingArgs, ctx: ToolContext) -> T
             return ToolResult(success=False, error="Selected time slot is not available")
 
         old_start = appointment.start_time
-        old_end = appointment.end_time
 
         new_start = datetime.combine(target_date, time(hour, minute))
         new_end = new_start + timedelta(minutes=duration)

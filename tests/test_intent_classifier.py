@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 
 import pytest
 
@@ -69,7 +69,7 @@ BOOKING_MSG = "I'd like to book a dental cleaning tomorrow at 10:00 am"
 
 
 class StubProvider(BaseLLMProvider):
-    def __init__(self, result: Optional[ClassificationResult] = None, error: Optional[Exception] = None):
+    def __init__(self, result: ClassificationResult | None = None, error: Exception | None = None):
         self.result = result
         self.error = error
         self.calls: list[list[dict[str, str]]] = []

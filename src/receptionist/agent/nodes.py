@@ -1,20 +1,33 @@
 import re
 import uuid
-from datetime import datetime, timezone, date as date_type
+from datetime import UTC, datetime
+from datetime import date as date_type
 from functools import wraps
-from typing import Any, Optional
-from sqlalchemy import select, update
-from receptionist.agent.state import ReceptionistState, Message, TimeSlot
-from receptionist.llm.intent import IntentClassifier
-from receptionist.db.models import (
-    Conversation, Message as MessageModel, AgentRun, AgentEvent, TenantSetting,
-    Customer, Service, Staff, Appointment, AppointmentStatus,
-)
-from receptionist.db.tenant import set_current_tenant, clear_current_tenant
-from receptionist.utils.pii import redact_pii
-from receptionist.utils.datetime_utils import parse_relative_date, parse_time_of_day
-from receptionist.tools.registry import get_tool, ToolContext, ToolResult
+from typing import Any
+
 import structlog
+from sqlalchemy import select, update
+
+from receptionist.agent.state import Message, ReceptionistState, TimeSlot
+from receptionist.db.models import (
+    AgentEvent,
+    AgentRun,
+    Appointment,
+    AppointmentStatus,
+    Conversation,
+    Customer,
+    Service,
+    Staff,
+    TenantSetting,
+)
+from receptionist.db.models import (
+    Message as MessageModel,
+)
+from receptionist.db.tenant import clear_current_tenant, set_current_tenant
+from receptionist.llm.intent import IntentClassifier
+from receptionist.tools.registry import ToolContext, ToolResult, get_tool
+from receptionist.utils.datetime_utils import parse_relative_date, parse_time_of_day
+from receptionist.utils.pii import redact_pii
 
 logger = structlog.get_logger()
 classifier = IntentClassifier()
@@ -148,7 +161,7 @@ async def intent_classifier(state: ReceptionistState, db_session: Any = None) ->
     return state
 
 
-def _normalize_date(raw: str, tz: str) -> Optional[str]:
+def _normalize_date(raw: str, tz: str) -> str | None:
     if not raw:
         return None
     try:
@@ -159,7 +172,7 @@ def _normalize_date(raw: str, tz: str) -> Optional[str]:
     return parsed.isoformat() if parsed else None
 
 
-def _normalize_time(raw: str) -> Optional[str]:
+def _normalize_time(raw: str) -> str | None:
     if not raw:
         return None
     if re.search(r"\b\d{1,2}:\d{2}\b", raw) or re.search(r"\b(am|pm)\b", raw.lower()):
@@ -220,7 +233,7 @@ async def entity_extraction(state: ReceptionistState, db_session: Any = None) ->
             rows = (await db_session.execute(
                 select(Service).where(
                     Service.tenant_id == state.tenant_id,
-                    Service.is_active == True,  # noqa: E712
+                    Service.is_active == True,
                 )
             )).scalars().all()
             lowered = raw_service.lower().strip()
@@ -247,7 +260,7 @@ async def entity_extraction(state: ReceptionistState, db_session: Any = None) ->
                 break
     if raw_staff:
         staff_rows = (await db_session.execute(
-            select(Staff).where(Staff.tenant_id == state.tenant_id, Staff.is_active == True)  # noqa: E712
+            select(Staff).where(Staff.tenant_id == state.tenant_id, Staff.is_active == True)
         )).scalars().all()
         lowered = raw_staff.lower().replace(".", "").strip()
         match = next(
@@ -320,7 +333,7 @@ async def entity_extraction(state: ReceptionistState, db_session: Any = None) ->
                 }
 
         if not state.appointment_id and state.customer_id:
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
             upcoming = (await db_session.execute(
                 select(Appointment).where(
                     Appointment.tenant_id == state.tenant_id,
@@ -439,12 +452,12 @@ async def dispatch_tool(state: ReceptionistState, db_session: Any) -> Receptioni
         run_id=state.agent_run_id,
     )
 
-    tool_name: Optional[str] = None
+    tool_name: str | None = None
     args: Any = None
 
     if intent == "booking":
-        from receptionist.tools.booking_tools import CreateBookingArgs
         from receptionist.tools.availability_tools import GetAvailabilityArgs
+        from receptionist.tools.booking_tools import CreateBookingArgs
 
         if (
             state.selected_service and state.requested_date
@@ -541,7 +554,7 @@ async def dispatch_tool(state: ReceptionistState, db_session: Any) -> Receptioni
 
     try:
         result = await tool_def.func(args, ctx)
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - tool boundary converts any error to a ToolResult
         logger.error("tool_execution_failed", tool_name=tool_name, error=str(e), tenant_id=state.tenant_id)
         result = ToolResult(
             success=False,
@@ -612,7 +625,7 @@ async def emergency_handler(state: ReceptionistState, db_session: Any = None) ->
     return await response_generation(state, db_session)
 
 
-def _friendly_date(iso: Optional[str]) -> str:
+def _friendly_date(iso: str | None) -> str:
     if not iso:
         return "the requested date"
     try:
@@ -621,7 +634,7 @@ def _friendly_date(iso: Optional[str]) -> str:
         return iso
 
 
-def _friendly_time(hhmm: Optional[str]) -> str:
+def _friendly_time(hhmm: str | None) -> str:
     if not hhmm:
         return "the requested time"
     try:
@@ -640,8 +653,8 @@ def _format_tool_success(state: ReceptionistState, tr: dict) -> str:
         when = (
             f"{_friendly_date(data.get('date'))} at {_friendly_time(data.get('time'))}"
         )
-        parts = [f"Your {data.get('service') or entities.get('service_name') or 'appointment'} "
-                 f"appointment is confirmed for {when}"]
+        parts = [(f"Your {data.get('service') or entities.get('service_name') or 'appointment'} "
+                  f"appointment is confirmed for {when}")]
         if data.get("staff"):
             parts.append(f" with {data['staff']}")
         parts.append(f". Appointment ID: {data.get('appointment_id')}.")
@@ -851,7 +864,7 @@ async def update_agent_state(state: ReceptionistState, db_session: Any = None) -
         await db_session.execute(
             update(AgentRun)
             .where(AgentRun.id == state.agent_run_id)
-            .values(status=status, completed_at=datetime.now(timezone.utc))
+            .values(status=status, completed_at=datetime.now(UTC))
         )
         db_session.add(AgentEvent(
             run_id=state.agent_run_id,
@@ -875,7 +888,7 @@ async def create_agent_run(state: ReceptionistState, db_session: Any = None) -> 
         conversation_id=state.conversation_id,
         tenant_id=state.tenant_id,
         status="running",
-        started_at=datetime.now(timezone.utc),
+        started_at=datetime.now(UTC),
     ))
     await db_session.flush()
     db_session.add(AgentEvent(

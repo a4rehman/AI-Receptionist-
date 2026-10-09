@@ -1,8 +1,14 @@
-from datetime import datetime, timedelta, timezone
-from sqlalchemy import select, func, and_
+from datetime import UTC, datetime, timedelta
+
+from sqlalchemy import func, select
+
 from receptionist.db.models import (
-    Conversation, Appointment, AppointmentStatus, AgentRun,
-    AgentEvent, HumanHandoff, ToolCall, Message,
+    AgentEvent,
+    AgentRun,
+    Appointment,
+    AppointmentStatus,
+    Conversation,
+    HumanHandoff,
 )
 
 
@@ -11,7 +17,7 @@ class AnalyticsService:
         self.session = session
 
     async def get_dashboard_metrics(self, tenant_id: str, days: int = 30) -> dict:
-        since = datetime.now(timezone.utc) - timedelta(days=days)
+        since = datetime.now(UTC) - timedelta(days=days)
 
         conv_result = await self.session.execute(
             select(func.count(Conversation.id)).where(
@@ -78,7 +84,7 @@ class AnalyticsService:
         }
 
     async def get_booking_conversion(self, tenant_id: str, days: int = 30) -> dict:
-        since = datetime.now(timezone.utc) - timedelta(days=days)
+        since = datetime.now(UTC) - timedelta(days=days)
 
         total_runs = await self.session.execute(
             select(func.count(AgentRun.id)).where(

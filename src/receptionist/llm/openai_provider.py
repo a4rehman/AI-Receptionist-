@@ -1,7 +1,9 @@
 from typing import Any
+
 from pydantic import BaseModel
-from receptionist.llm.base import BaseLLMProvider
+
 from receptionist.config import get_settings
+from receptionist.llm.base import BaseLLMProvider
 
 _settings = get_settings()
 

@@ -11,29 +11,37 @@ Usage:
 import asyncio
 import ssl
 import sys
-from datetime import date, timedelta
 
 from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from receptionist.config import get_settings
 from receptionist.db.models import (
-    Base, Tenant, TenantSetting, Location, Staff, Service,
-    StaffService, StaffSchedule, BusinessHours, Customer, FAQ,
+    FAQ,
+    Base,
+    BusinessHours,
+    Customer,
+    Location,
+    Service,
+    Staff,
+    StaffSchedule,
+    StaffService,
+    Tenant,
+    TenantSetting,
 )
 
 TEST_TENANT_ID = "clinic_001"
 
 FAQ_SEED = [
     ("insurance", "Do you accept insurance?",
-     "Yes, we accept most major dental insurance plans. Please bring your insurance card "
-     "to your first visit and we will verify your coverage before treatment."),
+     ("Yes, we accept most major dental insurance plans. Please bring your insurance card "
+      "to your first visit and we will verify your coverage before treatment.")),
     ("billing", "What payment methods do you accept?",
-     "We accept cash, credit and debit cards, and dental financing plans. Payment is due "
-     "at the time of service."),
+     ("We accept cash, credit and debit cards, and dental financing plans. Payment is due "
+      "at the time of service.")),
     ("policy", "What is your cancellation policy?",
-     "Please give us at least 24 hours notice to cancel or reschedule an appointment. "
-     "Late cancellations may incur a fee."),
+     ("Please give us at least 24 hours notice to cancel or reschedule an appointment. "
+      "Late cancellations may incur a fee.")),
     ("hours", "What are your opening hours?",
      "We are open Monday to Friday from 9:00 AM to 5:00 PM."),
     ("visits", "What should I bring to my first appointment?",
@@ -234,7 +242,7 @@ async def seed_database():
         print(f"Tenant ID: {TEST_TENANT_ID}")
         print("Dashboard me 'clinic_001' daal ke data dekh sakte hain")
 
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - script entrypoint reports and exits
         print(f"[FAIL] Seed failed: {e}")
         import traceback
         traceback.print_exc()

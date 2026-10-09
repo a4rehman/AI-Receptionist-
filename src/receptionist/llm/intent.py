@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Iterable, Optional
+from collections.abc import Iterable
+from typing import Any
 
 import structlog
 
@@ -33,12 +34,12 @@ class IntentClassifier:
     rule-based entities always win on key conflicts.
     """
 
-    def __init__(self, provider: Optional[BaseLLMProvider] = None):
+    def __init__(self, provider: BaseLLMProvider | None = None):
         self._provider = provider
         self._rules = RuleBasedIntentClassifier()
 
     @property
-    def provider(self) -> Optional[BaseLLMProvider]:
+    def provider(self) -> BaseLLMProvider | None:
         if self._provider is not None:
             return self._provider
         from receptionist.config import get_settings
@@ -49,7 +50,7 @@ class IntentClassifier:
             from receptionist.llm import get_llm_provider
 
             self._provider = get_llm_provider()
-        except Exception as e:  # pragma: no cover - defensive
+        except Exception as e:  # noqa: BLE001 - provider init must never break classification  # pragma: no cover - defensive
             logger.warning("llm_provider_init_failed", error=str(e))
         return self._provider
 
@@ -73,7 +74,7 @@ class IntentClassifier:
                 ClassificationResult,
                 temperature=0.0,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - fall back to rules on any provider error
             logger.warning("llm_intent_failed", error=str(e), tenant_free=True)
             return rule_result
 
